@@ -1,0 +1,495 @@
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { supabase } from '@/lib/supabase';
+import type {
+  User,
+  Track,
+  Playlist,
+  PlayLog,
+  PlayerState,
+  TrackFilters,
+  Toast,
+} from '@/types';
+
+interface StoreState {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoadingAuth: boolean;
+  login: (email: string, password: string) => Promise<boolean>;
+  register: (email: string, password: string, name: string) => Promise<boolean>;
+  logout: () => void;
+  updateProfile: (data: Partial<User>) => void;
+  initAuth: () => Promise<void>;
+  tracks: Track[];
+  tracksLoading: boolean;
+  fetchTracks: () => Promise<void>;
+  addTrack: (track: Omit<Track, 'id' | 'uploadDate' | 'updatedAt'>, file?: File) => Promise<void>;
+  updateTrack: (id: string, data: Partial<Track>) => Promise<void>;
+  deleteTrack: (id: string) => Promise<void>;
+  getTrackById: (id: string) => Track | undefined;
+  playlists: Playlist[];
+  playlistsLoading: boolean;
+  fetchPlaylists: () => Promise<void>;
+  addPlaylist: (playlist: Omit<Playlist, 'id' | 'createdDate' | 'updatedDate'>) => Promise<void>;
+  updatePlaylist: (id: string, data: Partial<Playlist>) => Promise<void>;
+  deletePlaylist: (id: string) => Promise<void>;
+  reorderPlaylistTracks: (playlistId: string, trackIds: string[]) => Promise<void>;
+  getPlaylistById: (id: string) => Playlist | undefined;
+  playLogs: PlayLog[];
+  addPlayLog: (log: Omit<PlayLog, 'id'>) => Promise<void>;
+  fetchPlayLogs: () => Promise<void>;
+  getPlayLogs: (filters?: { startDate?: Date; endDate?: Date; trackId?: string }) => PlayLog[];
+  generateASCAPReport: (startDate: Date, endDate: Date) => unknown;
+  player: PlayerState;
+  playTrack: (track: Track, playlist?: Playlist) => void;
+  playPlaylist: (playlist: Playlist, startIndex?: number) => void;
+  togglePlay: () => void;
+  pause: () => void;
+  resume: () => void;
+  stop: () => void;
+  nextTrack: () => void;
+  prevTrack: () => void;
+  seekTo: (time: number) => void;
+  setVolume: (volume: number) => void;
+  toggleMute: () => void;
+  setLoopMode: (mode: 'none' | 'single' | 'all') => void;
+  toggleShuffle: () => void;
+  updatePlayerTime: (currentTime: number, duration: number) => void;
+  filters: TrackFilters;
+  setFilters: (filters: Partial<TrackFilters>) => void;
+  resetFilters: () => void;
+  toasts: Toast[];
+  addToast: (message: string, type: Toast['type']) => void;
+  removeToast: (id: string) => void;
+  isDarkMode: boolean;
+  toggleDarkMode: () => void;
+  libraryPanelOpen: boolean;
+  setLibraryPanelOpen: (open: boolean) => void;
+  playlistPanelOpen: boolean;
+  setPlaylistPanelOpen: (open: boolean) => void;
+  reportsPanelOpen: boolean;
+  setReportsPanelOpen: (open: boolean) => void;
+}
+
+const initialPlayerState: PlayerState = {
+  currentTrack: null,
+  currentPlaylist: null,
+  queue: [],
+  currentIndex: 0,
+  isPlaying: false,
+  currentTime: 0,
+  duration: 0,
+  volume: 0.8,
+  isMuted: false,
+  loopMode: 'none',
+  isShuffled: false,
+};
+
+const initialFilters: TrackFilters = {
+  search: '',
+  genre: null,
+  mood: null,
+  tags: [],
+  sortBy: 'uploadDate',
+  sortOrder: 'desc',
+};
+
+function rowToTrack(row: Record<string, unknown>): Track {
+  return {
+    id: row.id as string,
+    userId: row.user_id as string,
+    title: row.title as string,
+    composer: row.composer as string,
+    duration: (row.duration as number) || 0,
+    fileUrl: (row.file_url as string) || '',
+    artworkUrl: (row.artwork_url as string) || '',
+    isrcCode: (row.isrc_code as string) || '',
+    writers: (row.writers as string[]) || [],
+    genre: (row.genre as string) || '',
+    tags: (row.tags as string[]) || [],
+    mood: (row.mood as string) || '',
+    tempo: (row.tempo as number) || 0,
+    uploadDate: new Date(row.upload_date as string),
+    updatedAt: new Date(row.updated_at as string),
+  };
+}
+
+function rowToPlaylist(row: Record<string, unknown>, tracks: Track[]): Playlist {
+  const trackIds = (row.track_ids as string[]) || [];
+  const playlistTracks = trackIds.map((id) => tracks.find((t) => t.id === id)).filter(Boolean) as Track[];
+  return {
+    id: row.id as string,
+    userId: row.user_id as string,
+    name: row.name as string,
+    description: (row.description as string) || '',
+    trackIds,
+    tracks: playlistTracks,
+    createdDate: new Date(row.created_date as string),
+    updatedDate: new Date(row.updated_date as string),
+    isShuffled: (row.is_shuffled as boolean) || false,
+    loopMode: (row.loop_mode as 'none' | 'single' | 'all') || 'none',
+  };
+}
+
+function rowToPlayLog(row: Record<string, unknown>, tracks: Track[]): PlayLog {
+  const track = tracks.find((t) => t.id === (row.track_id as string));
+  return {
+    id: row.id as string,
+    trackId: row.track_id as string,
+    track: track!,
+    userId: row.user_id as string,
+    playTimestamp: new Date(row.play_timestamp as string),
+    durationPlayed: (row.duration_played as number) || 0,
+    percentagePlayed: (row.percentage_played as number) || 0,
+    sessionId: (row.session_id as string) || '',
+    counted: (row.counted as boolean) || false,
+  };
+}
+
+export const useStore = create<StoreState>()(
+  persist(
+    (set, get) => ({
+      user: null,
+      isAuthenticated: false,
+      isLoadingAuth: true,
+
+      initAuth: async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+          const user: User = {
+            id: session.user.id,
+            email: session.user.email ?? '',
+            name: profile?.name ?? session.user.email?.split('@')[0] ?? '',
+            ascapId: profile?.ascap_id ?? '',
+            primaryPRO:         profile?.primary_pro ?? undefined,
+            bmiId:              profile?.bmi_id ?? '',
+            sesacId:            profile?.sesac_id ?? '',
+            gmrId:              profile?.gmr_id ?? '',
+            socanId:            profile?.socan_id ?? '',
+            prsId:              profile?.prs_id ?? '',
+            soundExchangeId:    profile?.sound_exchange_id ?? '',
+            ipiNumber:          profile?.ipi_number ?? '',
+            isniNumber:         profile?.isni_number ?? '',
+            publisherName:      profile?.publisher_name ?? '',
+            publisherIpiNumber: profile?.publisher_ipi ?? '',
+            distributorName:    profile?.distributor_name ?? '',
+            labelName:          profile?.label_name ?? '',
+            createdAt: new Date(session.user.created_at),
+            updatedAt: new Date(),
+          };
+          set({ user, isAuthenticated: true, isLoadingAuth: false });
+          await get().fetchTracks();
+          await get().fetchPlaylists();
+          await get().fetchPlayLogs();
+        } else {
+          set({ isLoadingAuth: false });
+        }
+      },
+
+      login: async (email, password) => {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error || !data.user) { get().addToast(error?.message ?? 'Login failed', 'error'); return false; }
+        const { data: profile } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
+        const user: User = {
+          id: data.user.id, email: data.user.email ?? '',
+          name: profile?.name ?? email.split('@')[0],
+          ascapId: profile?.ascap_id ?? '',
+          primaryPRO:         profile?.primary_pro ?? undefined,
+          bmiId:            profile?.bmi_id ?? '',
+          sesacId:          profile?.sesac_id ?? '',
+          gmrId:            profile?.gmr_id ?? '',
+          socanId:          profile?.socan_id ?? '',
+          prsId:            profile?.prs_id ?? '',
+          soundExchangeId:    profile?.sound_exchange_id ?? '',
+          ipiNumber:          profile?.ipi_number ?? '',
+          isniNumber:         profile?.isni_number ?? '',
+          publisherName:      profile?.publisher_name ?? '',
+          publisherIpiNumber: profile?.publisher_ipi ?? '',
+          distributorName:    profile?.distributor_name ?? '',
+          labelName:          profile?.label_name ?? '',
+          createdAt: new Date(data.user.created_at), updatedAt: new Date(),
+        };
+        set({ user, isAuthenticated: true });
+        await get().fetchTracks(); await get().fetchPlaylists(); await get().fetchPlayLogs();
+        get().addToast(`Welcome back, ${user.name}!`, 'success');
+        return true;
+      },
+
+      register: async (email, password, name) => {
+        const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { name } } });
+        if (error || !data.user) { get().addToast(error?.message ?? 'Registration failed', 'error'); return false; }
+        const user: User = {
+          id: data.user.id, email: data.user.email ?? '', name,
+          ascapId: '', createdAt: new Date(data.user.created_at), updatedAt: new Date(),
+        };
+        set({ user, isAuthenticated: true });
+        get().addToast(`Welcome, ${name}! Your account is ready.`, 'success');
+        return true;
+      },
+
+      logout: async () => {
+        await supabase.auth.signOut();
+        set({ user: null, isAuthenticated: false, tracks: [], playlists: [], playLogs: [], player: initialPlayerState });
+      },
+
+      updateProfile: async (data) => {
+        const { user } = get();
+        if (!user) return;
+        await supabase.from('profiles').update({
+          name:               data.name,
+          ascap_id:           data.ascapId,
+          primary_pro:        data.primaryPRO,
+          bmi_id:             data.bmiId,
+          sesac_id:           data.sesacId,
+          gmr_id:             data.gmrId,
+          socan_id:           data.socanId,
+          prs_id:             data.prsId,
+          sound_exchange_id:  data.soundExchangeId,
+          ipi_number:         data.ipiNumber,
+          isni_number:        data.isniNumber,
+          publisher_name:     data.publisherName,
+          publisher_ipi:      data.publisherIpiNumber,
+          distributor_name:   data.distributorName,
+          label_name:         data.labelName,
+          updated_at:         new Date().toISOString(),
+        }).eq('id', user.id);
+        set({ user: { ...user, ...data, updatedAt: new Date() } });
+      },
+
+      tracks: [],
+      tracksLoading: false,
+
+      fetchTracks: async () => {
+        const { user } = get();
+        if (!user) return;
+        set({ tracksLoading: true });
+        const { data, error } = await supabase.from('tracks').select('*').eq('user_id', user.id).order('upload_date', { ascending: false });
+        if (!error && data) {
+          const tracks = await Promise.all(data.map(async (row) => {
+            const track = rowToTrack(row);
+            if (row.file_path) {
+              const { data: urlData } = await supabase.storage.from('audio').createSignedUrl(row.file_path as string, 3600);
+              track.fileUrl = urlData?.signedUrl ?? '';
+            }
+            return track;
+          }));
+          set({ tracks, tracksLoading: false });
+        } else { set({ tracksLoading: false }); }
+      },
+
+      addTrack: async (trackData, file) => {
+        const { user } = get();
+        if (!user) return;
+        let filePath = '';
+        let fileUrl = trackData.fileUrl ?? '';
+        if (file) {
+          const ext = file.name.split('.').pop();
+          filePath = `${user.id}/${Date.now()}.${ext}`;
+          const { error: uploadError } = await supabase.storage.from('audio').upload(filePath, file, { contentType: file.type });
+          if (uploadError) { get().addToast('File upload failed: ' + uploadError.message, 'error'); return; }
+          const { data: urlData } = await supabase.storage.from('audio').createSignedUrl(filePath, 3600);
+          fileUrl = urlData?.signedUrl ?? '';
+        }
+        const { data, error } = await supabase.from('tracks').insert({
+          user_id: user.id, title: trackData.title, composer: trackData.composer,
+          duration: trackData.duration, file_url: fileUrl, file_path: filePath,
+          isrc_code: trackData.isrcCode ?? '', writers: trackData.writers ?? [],
+          genre: trackData.genre ?? '', tags: trackData.tags ?? [],
+          mood: trackData.mood ?? '', tempo: trackData.tempo ?? 0,
+        }).select().single();
+        if (!error && data) {
+          const newTrack = rowToTrack(data);
+          newTrack.fileUrl = fileUrl;
+          set((state) => ({ tracks: [newTrack, ...state.tracks] }));
+        } else { get().addToast('Failed to save track: ' + error?.message, 'error'); }
+      },
+
+      updateTrack: async (id, data) => {
+        const u: Record<string, unknown> = { updated_at: new Date().toISOString() };
+        if (data.title !== undefined) u.title = data.title;
+        if (data.composer !== undefined) u.composer = data.composer;
+        if (data.genre !== undefined) u.genre = data.genre;
+        if (data.mood !== undefined) u.mood = data.mood;
+        if (data.tempo !== undefined) u.tempo = data.tempo;
+        if (data.isrcCode !== undefined) u.isrc_code = data.isrcCode;
+        if (data.writers !== undefined) u.writers = data.writers;
+        if (data.tags !== undefined) u.tags = data.tags;
+        await supabase.from('tracks').update(u).eq('id', id);
+        set((state) => ({ tracks: state.tracks.map((t) => t.id === id ? { ...t, ...data, updatedAt: new Date() } : t) }));
+      },
+
+      deleteTrack: async (id) => {
+        const { data: row } = await supabase.from('tracks').select('file_path').eq('id', id).single();
+        if (row?.file_path) await supabase.storage.from('audio').remove([row.file_path]);
+        await supabase.from('tracks').delete().eq('id', id);
+        set((state) => ({ tracks: state.tracks.filter((t) => t.id !== id) }));
+      },
+
+      getTrackById: (id) => get().tracks.find((t) => t.id === id),
+
+      playlists: [],
+      playlistsLoading: false,
+
+      fetchPlaylists: async () => {
+        const { user, tracks } = get();
+        if (!user) return;
+        const { data, error } = await supabase.from('playlists').select('*').eq('user_id', user.id).order('created_date', { ascending: false });
+        if (!error && data) set({ playlists: data.map((row) => rowToPlaylist(row, tracks)) });
+      },
+
+      addPlaylist: async (playlist) => {
+        const { user, tracks } = get();
+        if (!user) return;
+        const { data, error } = await supabase.from('playlists').insert({
+          user_id: user.id, name: playlist.name, description: playlist.description,
+          track_ids: playlist.trackIds, is_shuffled: playlist.isShuffled, loop_mode: playlist.loopMode,
+        }).select().single();
+        if (!error && data) set((state) => ({ playlists: [rowToPlaylist(data, tracks), ...state.playlists] }));
+      },
+
+      updatePlaylist: async (id, data) => {
+        const { tracks } = get();
+        const u: Record<string, unknown> = { updated_date: new Date().toISOString() };
+        if (data.name !== undefined) u.name = data.name;
+        if (data.description !== undefined) u.description = data.description;
+        if (data.trackIds !== undefined) u.track_ids = data.trackIds;
+        if (data.isShuffled !== undefined) u.is_shuffled = data.isShuffled;
+        if (data.loopMode !== undefined) u.loop_mode = data.loopMode;
+        await supabase.from('playlists').update(u).eq('id', id);
+        set((state) => ({
+          playlists: state.playlists.map((p) => {
+            if (p.id !== id) return p;
+            const updated = { ...p, ...data, updatedDate: new Date() };
+            if (data.trackIds) updated.tracks = data.trackIds.map((tid) => tracks.find((t) => t.id === tid)).filter(Boolean) as Track[];
+            return updated;
+          }),
+        }));
+      },
+
+      deletePlaylist: async (id) => {
+        await supabase.from('playlists').delete().eq('id', id);
+        set((state) => ({ playlists: state.playlists.filter((p) => p.id !== id) }));
+      },
+
+      reorderPlaylistTracks: async (playlistId, trackIds) => {
+        const { tracks } = get();
+        await supabase.from('playlists').update({ track_ids: trackIds, updated_date: new Date().toISOString() }).eq('id', playlistId);
+        set((state) => ({
+          playlists: state.playlists.map((p) =>
+            p.id === playlistId
+              ? { ...p, trackIds, tracks: trackIds.map((id) => tracks.find((t) => t.id === id)).filter(Boolean) as Track[], updatedDate: new Date() }
+              : p
+          ),
+        }));
+      },
+
+      getPlaylistById: (id) => get().playlists.find((p) => p.id === id),
+
+      playLogs: [],
+
+      fetchPlayLogs: async () => {
+        const { user, tracks } = get();
+        if (!user) return;
+        const { data, error } = await supabase.from('play_logs').select('*').eq('user_id', user.id).order('play_timestamp', { ascending: false }).limit(1000);
+        if (!error && data) set({ playLogs: data.map((row) => rowToPlayLog(row, tracks)).filter((l) => l.track) });
+      },
+
+      addPlayLog: async (log) => {
+        const { user } = get();
+        if (!user) return;
+        const { data, error } = await supabase.from('play_logs').insert({
+          user_id: user.id, track_id: log.trackId,
+          play_timestamp: log.playTimestamp.toISOString(),
+          duration_played: log.durationPlayed, percentage_played: log.percentagePlayed,
+          session_id: log.sessionId, counted: log.counted,
+        }).select().single();
+        if (!error && data) set((state) => ({ playLogs: [{ ...log, id: data.id }, ...state.playLogs] }));
+      },
+
+      getPlayLogs: (filters) => {
+        let logs = get().playLogs;
+        if (filters?.startDate) logs = logs.filter((l) => l.playTimestamp >= filters.startDate!);
+        if (filters?.endDate) logs = logs.filter((l) => l.playTimestamp <= filters.endDate!);
+        if (filters?.trackId) logs = logs.filter((l) => l.trackId === filters.trackId);
+        return logs;
+      },
+
+      generateASCAPReport: (startDate, endDate) => {
+        const logs = get().getPlayLogs({ startDate, endDate });
+        const trackMap = new Map<string, { track: Track; plays: PlayLog[] }>();
+        logs.forEach((log) => {
+          if (!log.track) return;
+          if (!trackMap.has(log.trackId)) trackMap.set(log.trackId, { track: log.track, plays: [] });
+          trackMap.get(log.trackId)!.plays.push(log);
+        });
+        const tracks = Array.from(trackMap.entries()).map(([trackId, d]) => ({
+          trackId, trackTitle: d.track.title, composer: d.track.composer,
+          writers: d.track.writers || [d.track.composer],
+          totalPlays: d.plays.length, countedPlays: d.plays.filter((p) => p.counted).length,
+          firstPlayDate: new Date(Math.min(...d.plays.map((p) => p.playTimestamp.getTime()))),
+          lastPlayDate: new Date(Math.max(...d.plays.map((p) => p.playTimestamp.getTime()))),
+        }));
+        return { reportPeriod: { start: startDate, end: endDate }, generatedAt: new Date(), platform: 'OKComputer Personal Radio Station', totalPlays: logs.length, tracks };
+      },
+
+      player: initialPlayerState,
+      playTrack: (track, playlist) => set((s) => ({ player: { ...s.player, currentTrack: track, currentPlaylist: playlist || null, isPlaying: true, currentTime: 0, duration: track.duration } })),
+      playPlaylist: (playlist, startIndex = 0) => {
+        const track = playlist.tracks[startIndex];
+        if (track) set((s) => ({ player: { ...s.player, currentTrack: track, currentPlaylist: playlist, queue: playlist.tracks, currentIndex: startIndex, isPlaying: true, currentTime: 0, duration: track.duration } }));
+      },
+      togglePlay: () => set((s) => ({ player: { ...s.player, isPlaying: !s.player.isPlaying } })),
+      pause: () => set((s) => ({ player: { ...s.player, isPlaying: false } })),
+      resume: () => set((s) => ({ player: { ...s.player, isPlaying: true } })),
+      stop: () => set((s) => ({ player: { ...s.player, isPlaying: false, currentTime: 0 } })),
+      nextTrack: () => {
+        const { player } = get();
+        if (!player.currentPlaylist) return;
+        const nextIndex = player.isShuffled ? Math.floor(Math.random() * player.currentPlaylist.tracks.length) : (player.currentIndex + 1) % player.currentPlaylist.tracks.length;
+        const nextTrack = player.currentPlaylist.tracks[nextIndex];
+        if (nextTrack) set((s) => ({ player: { ...s.player, currentTrack: nextTrack, currentIndex: nextIndex, isPlaying: true, currentTime: 0, duration: nextTrack.duration } }));
+      },
+      prevTrack: () => {
+        const { player } = get();
+        if (!player.currentPlaylist) return;
+        const prevIndex = player.currentIndex === 0 ? player.currentPlaylist.tracks.length - 1 : player.currentIndex - 1;
+        const prevTrack = player.currentPlaylist.tracks[prevIndex];
+        if (prevTrack) set((s) => ({ player: { ...s.player, currentTrack: prevTrack, currentIndex: prevIndex, isPlaying: true, currentTime: 0, duration: prevTrack.duration } }));
+      },
+      seekTo: (time) => set((s) => ({ player: { ...s.player, currentTime: time } })),
+      setVolume: (volume) => set((s) => ({ player: { ...s.player, volume } })),
+      toggleMute: () => set((s) => ({ player: { ...s.player, isMuted: !s.player.isMuted } })),
+      setLoopMode: (mode) => set((s) => ({ player: { ...s.player, loopMode: mode } })),
+      toggleShuffle: () => set((s) => ({ player: { ...s.player, isShuffled: !s.player.isShuffled } })),
+      updatePlayerTime: (currentTime, duration) => set((s) => ({ player: { ...s.player, currentTime, duration } })),
+
+      filters: initialFilters,
+      setFilters: (f) => set((s) => ({ filters: { ...s.filters, ...f } })),
+      resetFilters: () => set({ filters: initialFilters }),
+
+      toasts: [],
+      addToast: (message, type) => {
+        const toast: Toast = { id: Math.random().toString(36).substr(2, 9), message, type };
+        set((s) => ({ toasts: [...s.toasts, toast] }));
+        setTimeout(() => get().removeToast(toast.id), 3500);
+      },
+      removeToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+      isDarkMode: true,
+      toggleDarkMode: () => set((s) => ({ isDarkMode: !s.isDarkMode })),
+      libraryPanelOpen: false,
+      setLibraryPanelOpen: (open) => set({ libraryPanelOpen: open }),
+      playlistPanelOpen: false,
+      setPlaylistPanelOpen: (open) => set({ playlistPanelOpen: open }),
+      reportsPanelOpen: false,
+      setReportsPanelOpen: (open) => set({ reportsPanelOpen: open }),
+    }),
+    {
+      name: 'radio-station-storage',
+      partialize: (state) => ({
+        isDarkMode: state.isDarkMode,
+        player: { volume: state.player.volume, isMuted: state.player.isMuted, loopMode: state.player.loopMode, isShuffled: state.player.isShuffled },
+      }),
+    }
+  )
+);
