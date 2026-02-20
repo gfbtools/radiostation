@@ -189,7 +189,13 @@ export const useStore = create<StoreState>()(
 
       login: async (email, password) => {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error || !data.user) { get().addToast(error?.message ?? 'Login failed', 'error'); return false; }
+        if (error || !data.user) {
+          const msg = error?.message?.toLowerCase().includes('email not confirmed')
+            ? 'Please confirm your email before signing in — check your inbox.'
+            : error?.message ?? 'Invalid email or password';
+          get().addToast(msg, 'error');
+          return false;
+        }
         const { data: profile } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
         const user: User = {
           id: data.user.id, email: data.user.email ?? '',
@@ -217,15 +223,31 @@ export const useStore = create<StoreState>()(
       },
 
       register: async (email, password, name) => {
-        const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { name } } });
-        if (error || !data.user) { get().addToast(error?.message ?? 'Registration failed', 'error'); return false; }
-        const user: User = {
-          id: data.user.id, email: data.user.email ?? '', name,
-          ascapId: '', createdAt: new Date(data.user.created_at), updatedAt: new Date(),
-        };
-        set({ user, isAuthenticated: true });
-        get().addToast(`Welcome, ${name}! Your account is ready.`, 'success');
-        return true;
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { name },
+            emailRedirectTo: window.location.origin,
+          },
+        });
+        if (error) { get().addToast(error.message ?? 'Registration failed', 'error'); return false; }
+        if (!data.user) { get().addToast('Registration failed — please try again', 'error'); return false; }
+
+        // If session exists, email confirmation is disabled — log them straight in
+        if (data.session) {
+          const user: User = {
+            id: data.user.id, email: data.user.email ?? '', name,
+            ascapId: '', createdAt: new Date(data.user.created_at), updatedAt: new Date(),
+          };
+          set({ user, isAuthenticated: true });
+          await get().fetchTracks(); await get().fetchPlaylists(); await get().fetchPlayLogs();
+          get().addToast(`Welcome, ${name}! Your account is ready.`, 'success');
+          return true;
+        }
+
+        // No session means email confirmation is required — return 'confirm' signal
+        return 'confirm' as unknown as boolean;
       },
 
       logout: async () => {

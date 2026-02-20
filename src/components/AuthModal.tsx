@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Music, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Music, Eye, EyeOff, Loader2, MailCheck } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 
 export default function AuthModal() {
@@ -11,6 +11,7 @@ export default function AuthModal() {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [awaitingConfirm, setAwaitingConfirm] = useState(false);
 
   const handleSubmit = async () => {
     setError('');
@@ -19,11 +20,18 @@ export default function AuthModal() {
     if (password.length < 6) { setError('Password must be at least 6 characters'); return; }
 
     setLoading(true);
-    const ok = mode === 'login'
-      ? await login(email, password)
-      : await register(email, password, name);
+    if (mode === 'login') {
+      const ok = await login(email, password);
+      if (!ok) setError("Invalid email or password — or your email hasn't been confirmed yet.");
+    } else {
+      const result = await register(email, password, name);
+      if (result === ('confirm' as unknown as boolean)) {
+        setAwaitingConfirm(true);
+      } else if (!result) {
+        setError('Registration failed — try a different email');
+      }
+    }
     setLoading(false);
-    if (!ok) setError(mode === 'login' ? 'Invalid email or password' : 'Registration failed — try a different email');
   };
 
   const inputStyle = {
@@ -31,11 +39,36 @@ export default function AuthModal() {
     border: '1px solid rgba(255,255,255,0.1)',
   };
 
+  if (awaitingConfirm) {
+    return (
+      <div className="fixed inset-0 z-[300] flex items-center justify-center p-4" style={{ backgroundColor: '#0B0B0D' }}>
+        <div className="grain-overlay" />
+        <div className="relative w-full max-w-md text-center">
+          <div className="w-16 h-16 rounded-2xl bg-[#C9FF3B]/10 flex items-center justify-center mx-auto mb-6">
+            <MailCheck size={28} className="text-[#C9FF3B]" />
+          </div>
+          <h2 className="text-[#F2F2F2] text-2xl font-semibold mb-3">Check your email</h2>
+          <p className="text-[#B8B8B8] text-sm leading-relaxed mb-2">We sent a confirmation link to</p>
+          <p className="text-[#C9FF3B] font-medium mb-6">{email}</p>
+          <p className="text-[#666] text-sm leading-relaxed mb-8">
+            Click the link in that email to activate your account, then come back here and sign in.
+          </p>
+          <button
+            onClick={() => { setAwaitingConfirm(false); setMode('login'); setPassword(''); }}
+            className="btn-primary w-full"
+          >
+            Back to Sign In
+          </button>
+          <p className="text-[#444] text-xs mt-4">Can't find it? Check your spam folder.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center p-4" style={{ backgroundColor: '#0B0B0D' }}>
       <div className="grain-overlay" />
       <div className="relative w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-10">
           <div className="w-16 h-16 rounded-2xl bg-[#C9FF3B]/10 flex items-center justify-center mx-auto mb-4">
             <Music size={28} className="text-[#C9FF3B]" />
@@ -44,9 +77,7 @@ export default function AuthModal() {
           <p className="text-[#666] text-sm mt-1">Personal Radio Station</p>
         </div>
 
-        {/* Card */}
         <div className="glass-card p-8">
-          {/* Tab Toggle */}
           <div className="flex rounded-xl p-1 mb-8" style={{ background: 'rgba(255,255,255,0.04)' }}>
             {(['login', 'register'] as const).map((m) => (
               <button
@@ -119,9 +150,7 @@ export default function AuthModal() {
               </div>
             </div>
 
-            {error && (
-              <p className="text-red-400 text-sm px-1">{error}</p>
-            )}
+            {error && <p className="text-red-400 text-sm px-1">{error}</p>}
 
             <button
               onClick={handleSubmit}
