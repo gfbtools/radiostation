@@ -1,7 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { X, Upload, Music, CheckCircle } from 'lucide-react';
 import { useStore } from '@/store/useStore';
-import { audioEngine } from '@/lib/audioEngine';
 
 interface Props {
   onClose: () => void;
@@ -19,7 +18,7 @@ export default function TrackUploadModal({ onClose }: Props) {
   const [file, setFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
   const [duration, setDuration] = useState(0);
-  const [blobUrl, setBlobUrl] = useState<string>('');
+  const [_blobUrl, setBlobUrl] = useState<string>('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 

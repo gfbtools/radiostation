@@ -184,12 +184,9 @@ export default function Footer() {
             <ul className="space-y-2">
               {footerLinks.company.map((link) => (
                 <li key={link.label}>
-                  <a
-                    href={link.href}
-                    className="text-[#F2F2F2] text-sm hover:text-[#C9FF3B] transition-colors"
-                  >
+                  <span className="text-[#555] text-sm cursor-not-allowed">
                     {link.label}
-                  </a>
+                  </span>
                 </li>
               ))}
             </ul>
@@ -201,12 +198,9 @@ export default function Footer() {
             <ul className="space-y-2">
               {footerLinks.legal.map((link) => (
                 <li key={link.label}>
-                  <a
-                    href={link.href}
-                    className="text-[#F2F2F2] text-sm hover:text-[#C9FF3B] transition-colors"
-                  >
+                  <span className="text-[#555] text-sm cursor-not-allowed">
                     {link.label}
-                  </a>
+                  </span>
                 </li>
               ))}
             </ul>
