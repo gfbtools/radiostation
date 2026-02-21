@@ -73,7 +73,7 @@ export default function AuthModal() {
           <div className="w-16 h-16 rounded-2xl bg-[#C9FF3B]/10 flex items-center justify-center mx-auto mb-4">
             <Music size={28} className="text-[#C9FF3B]" />
           </div>
-          <h1 className="text-[#F2F2F2] text-2xl font-semibold tracking-tight">OKComputer</h1>
+          <h1 className="text-[#F2F2F2] text-2xl font-semibold tracking-tight">Studio2Radio</h1>
           <p className="text-[#666] text-sm mt-1">Personal Radio Station</p>
         </div>
 

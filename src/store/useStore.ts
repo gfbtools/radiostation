@@ -452,7 +452,7 @@ export const useStore = create<StoreState>()(
           firstPlayDate: new Date(Math.min(...d.plays.map((p) => p.playTimestamp.getTime()))),
           lastPlayDate: new Date(Math.max(...d.plays.map((p) => p.playTimestamp.getTime()))),
         }));
-        return { reportPeriod: { start: startDate, end: endDate }, generatedAt: new Date(), platform: 'OKComputer Personal Radio Station', totalPlays: logs.length, tracks };
+        return { reportPeriod: { start: startDate, end: endDate }, generatedAt: new Date(), platform: 'Studio2Radio', totalPlays: logs.length, tracks };
       },
 
       player: initialPlayerState,
