@@ -162,6 +162,14 @@ export default function PlayerBar() {
 
         {/* ── Center: Controls + Progress ── */}
         <div className="flex flex-col items-center gap-2 flex-1 max-w-[500px]">
+
+          {/* Mobile track title — only visible on small screens */}
+          {hasTrack && (
+            <p className="md:hidden text-[#F2F2F2] text-xs font-medium truncate w-full text-center px-2">
+              {player.currentTrack?.title}
+            </p>
+          )}
+
           <div className="flex items-center gap-4">
             <button onClick={toggleShuffle} className="p-2 rounded-lg hover:bg-white/5 transition-colors" title="Shuffle">
               <Shuffle size={16} className={player.isShuffled ? 'text-[#C9FF3B]' : 'text-[#666]'} />

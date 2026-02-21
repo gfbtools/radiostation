@@ -368,21 +368,109 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Responsive */
 @media (max-width: 768px) {
+  /* ── Layout ── */
   .section-pinned {
     min-height: 100vh;
     height: auto;
   }
-  
-  .player-bar {
-    height: 70px;
-  }
-  
+
+  /* ── Typography ── */
   h1 {
-    font-size: clamp(32px, 8vw, 44px) !important;
+    font-size: clamp(28px, 7vw, 40px) !important;
+    line-height: 1 !important;
   }
-  
   h2 {
-    font-size: clamp(28px, 6vw, 34px) !important;
+    font-size: clamp(22px, 6vw, 32px) !important;
+  }
+
+  /* ── Player bar — stacked layout on mobile ── */
+  .player-bar {
+    height: 110px;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .player-bar > div {
+    flex-direction: column !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    padding: 8px 16px !important;
+    height: 100% !important;
+  }
+
+  /* Hide track info on left, hide volume on right — show only controls + progress */
+  .player-bar > div > div:first-child {
+    display: none !important;
+  }
+
+  .player-bar > div > div:last-child {
+    display: none !important;
+  }
+
+  .player-bar > div > div:nth-child(2) {
+    width: 100% !important;
+    max-width: 100% !important;
+    gap: 6px !important;
+  }
+
+  .player-bar > div > div:nth-child(2) > div:first-child {
+    gap: 16px !important;
+  }
+
+  .player-bar > div > div:nth-child(2) > div:last-child {
+    gap: 8px !important;
+  }
+
+  /* Progress bar — taller touch target */
+  .progress-bar {
+    height: 6px;
+  }
+
+  /* ── Modals ── */
+  .modal-content {
+    padding: 20px 16px;
+    border-radius: 16px;
+    max-height: 85vh;
+    width: calc(100vw - 32px);
+  }
+
+  /* ── Glass cards ── */
+  .glass-card {
+    border-radius: 20px;
+  }
+
+  /* ── Buttons ── */
+  .btn-primary,
+  .btn-secondary {
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+
+  /* ── Toast — fit on mobile ── */
+  .toast-container {
+    top: 12px;
+    right: 12px;
+    left: 12px;
+  }
+
+  .toast {
+    font-size: 13px;
+    padding: 12px 16px;
+  }
+
+  /* ── Track items — bigger touch targets ── */
+  .track-item {
+    padding: 14px 12px;
+  }
+
+  /* ── Inputs ── */
+  .input-dark {
+    padding: 12px 14px;
+    font-size: 16px; /* prevents iOS zoom on focus */
+  }
+
+  /* ── Volume slider — hide on mobile (no room) ── */
+  .volume-slider {
+    display: none;
   }
 }
 
