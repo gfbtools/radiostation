@@ -50,10 +50,6 @@ export default function OnAirPanel({ onClose }: Props) {
     onClose();
   };
 
-  const onAirCount = mode === 'all'
-    ? tracks.length
-    : selectedTracks.size + selectedPlaylists.reduce((acc, _) => acc, 0);
-
   const formatDur = (s: number) => {
     if (!s) return '--:--';
     return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
