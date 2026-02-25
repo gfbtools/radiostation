@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Save, Check, User, Music, Building2, Disc3, Globe } from 'lucide-react';
+import { X, Save, Check, User, Music, Building2, Disc3, Globe, Upload, Image } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import type { PROName } from '@/types';
 
@@ -32,10 +32,13 @@ const inputStyle = {
 };
 
 export default function ProfileSettingsModal({ onClose }: Props) {
-  const { user, updateProfile, addToast } = useStore();
-  const [tab, setTab] = useState<Tab>('profile');
+  const { user, updateProfile, uploadLogo, addToast } = useStore();
+  const [tab, setTab]       = useState<Tab>('profile');
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved]   = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoPreview, setLogoPreview]     = useState<string>(user?.logoUrl ?? '');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
     name:               user?.name ?? '',
@@ -57,6 +60,26 @@ export default function ProfileSettingsModal({ onClose }: Props) {
 
   const set = (key: keyof typeof form, value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
+
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { addToast('Please select an image file', 'error'); return; }
+    if (file.size > 5 * 1024 * 1024) { addToast('Image must be under 5MB', 'error'); return; }
+
+    // Show preview immediately
+    const reader = new FileReader();
+    reader.onload = (ev) => setLogoPreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+
+    setLogoUploading(true);
+    const url = await uploadLogo(file);
+    setLogoUploading(false);
+    if (url) {
+      setLogoPreview(url);
+      addToast('Logo uploaded!', 'success');
+    }
+  };
 
   const handleSave = async () => {
     if (!form.name.trim()) { addToast('Name is required', 'error'); return; }
@@ -100,7 +123,7 @@ export default function ProfileSettingsModal({ onClose }: Props) {
         className="w-full px-4 py-2.5 rounded-xl text-[#F2F2F2] text-sm outline-none transition-all"
         style={inputStyle}
         onFocus={(e) => (e.target.style.borderColor = 'rgba(201,255,59,0.4)')}
-        onBlur={(e) => (e.target.style.borderColor = 'rgba(255,255,255,0.1)')}
+        onBlur={(e)  => (e.target.style.borderColor = 'rgba(255,255,255,0.1)')}
       />
       {hint && <p className="text-[#555] text-xs mt-1">{hint}</p>}
     </div>
@@ -125,16 +148,16 @@ export default function ProfileSettingsModal({ onClose }: Props) {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 px-8 pt-4 flex-shrink-0">
+        <div className="flex gap-1 px-8 pt-4 flex-shrink-0 overflow-x-auto">
           {TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => setTab(id)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm transition-all"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm transition-all whitespace-nowrap"
               style={{
                 background: tab === id ? 'rgba(201,255,59,0.1)' : 'transparent',
-                color: tab === id ? '#C9FF3B' : '#666',
-                border: tab === id ? '1px solid rgba(201,255,59,0.2)' : '1px solid transparent',
+                color:      tab === id ? '#C9FF3B' : '#666',
+                border:     tab === id ? '1px solid rgba(201,255,59,0.2)' : '1px solid transparent',
               }}
             >
               <Icon size={13} />
@@ -149,61 +172,81 @@ export default function ProfileSettingsModal({ onClose }: Props) {
           {/* ── PROFILE ── */}
           {tab === 'profile' && (
             <>
-              <Field label="Display Name" value={form.name} onChange={(v) => set('name', v)} placeholder="Your name" />
-
+              {/* Logo Upload */}
               <div>
-                <label className="block text-[#B8B8B8] text-xs uppercase tracking-wide mb-2">Primary PRO</label>
-                <p className="text-[#555] text-xs mb-3">This PRO will appear at the top of all exported reports.</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['', ...PROS.map((p) => p.id)] as (PROName | '')[]).map((pro) => (
+                <label className="block text-[#B8B8B8] text-xs uppercase tracking-wide mb-3">Station Logo</label>
+                <div className="flex items-center gap-5">
+                  {/* Preview */}
+                  <div
+                    className="w-20 h-20 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden"
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}
+                  >
+                    {logoPreview ? (
+                      <img src={logoPreview} alt="Logo" className="w-full h-full object-cover" />
+                    ) : (
+                      <Image size={28} className="text-[#444]" />
+                    )}
+                  </div>
+
+                  {/* Upload button */}
+                  <div className="flex-1">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoChange}
+                      className="hidden"
+                    />
                     <button
-                      key={pro || 'none'}
-                      onClick={() => set('primaryPRO', pro)}
-                      className="py-2.5 px-3 rounded-xl text-sm font-medium transition-all text-center"
-                      style={{
-                        background: form.primaryPRO === pro
-                          ? 'rgba(201,255,59,0.15)'
-                          : 'rgba(255,255,255,0.04)',
-                        border: form.primaryPRO === pro
-                          ? '1px solid rgba(201,255,59,0.35)'
-                          : '1px solid rgba(255,255,255,0.08)',
-                        color: form.primaryPRO === pro ? '#C9FF3B' : '#B8B8B8',
-                      }}
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={logoUploading}
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm transition-all disabled:opacity-50"
+                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: '#F2F2F2' }}
                     >
-                      {pro || 'None set'}
+                      <Upload size={14} />
+                      {logoUploading ? 'Uploading…' : logoPreview ? 'Change Logo' : 'Upload Logo'}
                     </button>
-                  ))}
+                    <p className="text-[#555] text-xs mt-2">PNG, JPG, or SVG · Max 5MB · Shown in your public widget</p>
+                  </div>
                 </div>
               </div>
 
-              <Field
-                label="IPI / CAE Number"
-                value={form.ipiNumber}
-                onChange={(v) => set('ipiNumber', v)}
-                placeholder="e.g. 00123456789"
-                hint="Your global composer/publisher identifier used by all PROs"
-              />
-              <Field
-                label="ISNI Number"
-                value={form.isniNumber}
-                onChange={(v) => set('isniNumber', v)}
-                placeholder="e.g. 0000 0001 2345 6789"
-                hint="International Standard Name Identifier (optional)"
-              />
+              <div className="border-t border-white/5 pt-4 space-y-5">
+                <Field label="Display Name / Artist Name" value={form.name} onChange={(v) => set('name', v)} placeholder="Your name or group name" />
+
+                <div>
+                  <label className="block text-[#B8B8B8] text-xs uppercase tracking-wide mb-2">Primary PRO</label>
+                  <p className="text-[#555] text-xs mb-3">This PRO will appear at the top of all exported reports.</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['', ...PROS.map((p) => p.id)] as (PROName | '')[]).map((pro) => (
+                      <button
+                        key={pro || 'none'}
+                        onClick={() => set('primaryPRO', pro)}
+                        className="py-2.5 px-3 rounded-xl text-sm font-medium transition-all text-center"
+                        style={{
+                          background: form.primaryPRO === pro ? 'rgba(201,255,59,0.15)' : 'rgba(255,255,255,0.04)',
+                          border:     form.primaryPRO === pro ? '1px solid rgba(201,255,59,0.35)' : '1px solid rgba(255,255,255,0.08)',
+                          color:      form.primaryPRO === pro ? '#C9FF3B' : '#B8B8B8',
+                        }}
+                      >
+                        {pro || 'None set'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <Field label="IPI / CAE Number" value={form.ipiNumber} onChange={(v) => set('ipiNumber', v)} placeholder="e.g. 00123456789" hint="Your global composer/publisher identifier used by all PROs" />
+                <Field label="ISNI Number" value={form.isniNumber} onChange={(v) => set('isniNumber', v)} placeholder="e.g. 0000 0001 2345 6789" hint="International Standard Name Identifier (optional)" />
+              </div>
             </>
           )}
 
           {/* ── PRO ACCOUNTS ── */}
           {tab === 'pros' && (
             <>
-              <div
-                className="p-4 rounded-2xl text-sm"
-                style={{ background: 'rgba(201,255,59,0.04)', border: '1px solid rgba(201,255,59,0.1)' }}
-              >
+              <div className="p-4 rounded-2xl text-sm" style={{ background: 'rgba(201,255,59,0.04)', border: '1px solid rgba(201,255,59,0.1)' }}>
                 <p className="text-[#C9FF3B] font-medium mb-1">Your PRO member IDs</p>
-                <p className="text-[#666] text-xs leading-relaxed">
-                  Fill in whichever PROs you're registered with. These IDs appear in exported performance reports. Most composers are registered with just one PRO — you can't be a member of both ASCAP and BMI simultaneously in the US.
-                </p>
+                <p className="text-[#666] text-xs leading-relaxed">Fill in whichever PROs you're registered with. These IDs appear in exported performance reports.</p>
               </div>
 
               {PROS.map((pro) => (
@@ -211,13 +254,9 @@ export default function ProfileSettingsModal({ onClose }: Props) {
                   <div
                     className="flex-shrink-0 w-16 h-10 rounded-xl flex items-center justify-center text-xs font-bold"
                     style={{
-                      background: form[pro.field as keyof typeof form]
-                        ? 'rgba(201,255,59,0.15)'
-                        : 'rgba(255,255,255,0.04)',
-                      border: form[pro.field as keyof typeof form]
-                        ? '1px solid rgba(201,255,59,0.3)'
-                        : '1px solid rgba(255,255,255,0.08)',
-                      color: form[pro.field as keyof typeof form] ? '#C9FF3B' : '#555',
+                      background: form[pro.field as keyof typeof form] ? 'rgba(201,255,59,0.15)' : 'rgba(255,255,255,0.04)',
+                      border:     form[pro.field as keyof typeof form] ? '1px solid rgba(201,255,59,0.3)' : '1px solid rgba(255,255,255,0.08)',
+                      color:      form[pro.field as keyof typeof form] ? '#C9FF3B' : '#555',
                     }}
                   >
                     {pro.id}
@@ -234,13 +273,12 @@ export default function ProfileSettingsModal({ onClose }: Props) {
                       className="w-full px-4 py-2.5 rounded-xl text-[#F2F2F2] text-sm outline-none transition-all"
                       style={inputStyle}
                       onFocus={(e) => (e.target.style.borderColor = 'rgba(201,255,59,0.4)')}
-                      onBlur={(e) => (e.target.style.borderColor = 'rgba(255,255,255,0.1)')}
+                      onBlur={(e)  => (e.target.style.borderColor = 'rgba(255,255,255,0.1)')}
                     />
                   </div>
                 </div>
               ))}
 
-              {/* SoundExchange — separate since it's neighboring rights, not a PRO */}
               <div className="pt-2 border-t border-white/5">
                 <p className="text-[#555] text-xs uppercase tracking-wide mb-4">Neighboring Rights & Mechanicals</p>
                 <div className="flex items-start gap-4">
@@ -248,12 +286,10 @@ export default function ProfileSettingsModal({ onClose }: Props) {
                     className="flex-shrink-0 w-16 h-10 rounded-xl flex items-center justify-center text-[10px] font-bold text-center leading-tight px-1"
                     style={{
                       background: form.soundExchangeId ? 'rgba(201,255,59,0.15)' : 'rgba(255,255,255,0.04)',
-                      border: form.soundExchangeId ? '1px solid rgba(201,255,59,0.3)' : '1px solid rgba(255,255,255,0.08)',
-                      color: form.soundExchangeId ? '#C9FF3B' : '#555',
+                      border:     form.soundExchangeId ? '1px solid rgba(201,255,59,0.3)' : '1px solid rgba(255,255,255,0.08)',
+                      color:      form.soundExchangeId ? '#C9FF3B' : '#555',
                     }}
-                  >
-                    SX
-                  </div>
+                  >SX</div>
                   <div className="flex-1">
                     <label className="block text-[#B8B8B8] text-xs uppercase tracking-wide mb-1.5">
                       SoundExchange <span className="text-[#444] normal-case tracking-normal font-normal">· Digital Performance Royalties</span>
@@ -266,7 +302,7 @@ export default function ProfileSettingsModal({ onClose }: Props) {
                       className="w-full px-4 py-2.5 rounded-xl text-[#F2F2F2] text-sm outline-none transition-all"
                       style={inputStyle}
                       onFocus={(e) => (e.target.style.borderColor = 'rgba(201,255,59,0.4)')}
-                      onBlur={(e) => (e.target.style.borderColor = 'rgba(255,255,255,0.1)')}
+                      onBlur={(e)  => (e.target.style.borderColor = 'rgba(255,255,255,0.1)')}
                     />
                   </div>
                 </div>
@@ -277,57 +313,24 @@ export default function ProfileSettingsModal({ onClose }: Props) {
           {/* ── PUBLISHING ── */}
           {tab === 'publishing' && (
             <>
-              <div
-                className="p-4 rounded-2xl text-sm"
-                style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
-              >
+              <div className="p-4 rounded-2xl text-sm" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
                 <p className="text-[#F2F2F2] font-medium mb-1">Publishing information</p>
-                <p className="text-[#666] text-xs leading-relaxed">
-                  If you self-publish, your publisher name is typically your own name or a DBA. This information is included in performance reports for licensing purposes.
-                </p>
+                <p className="text-[#666] text-xs leading-relaxed">If you self-publish, your publisher name is typically your own name or a DBA.</p>
               </div>
-              <Field
-                label="Publisher Name"
-                value={form.publisherName}
-                onChange={(v) => set('publisherName', v)}
-                placeholder="e.g. GFB Music Publishing"
-                hint="Your publishing company or self-publishing entity name"
-              />
-              <Field
-                label="Publisher IPI Number"
-                value={form.publisherIpiNumber}
-                onChange={(v) => set('publisherIpiNumber', v)}
-                placeholder="e.g. 00987654321"
-                hint="Separate IPI from your composer IPI if you have a publishing entity"
-              />
+              <Field label="Publisher Name" value={form.publisherName} onChange={(v) => set('publisherName', v)} placeholder="e.g. GFB Music Publishing" hint="Your publishing company or self-publishing entity name" />
+              <Field label="Publisher IPI Number" value={form.publisherIpiNumber} onChange={(v) => set('publisherIpiNumber', v)} placeholder="e.g. 00987654321" hint="Separate IPI from your composer IPI if you have a publishing entity" />
             </>
           )}
 
           {/* ── DISTRIBUTION ── */}
           {tab === 'distribution' && (
             <>
-              <div
-                className="p-4 rounded-2xl text-sm"
-                style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
-              >
+              <div className="p-4 rounded-2xl text-sm" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
                 <p className="text-[#F2F2F2] font-medium mb-1">Distribution & label info</p>
-                <p className="text-[#666] text-xs leading-relaxed">
-                  Used for metadata in reports and track exports. Helpful if you're submitting reports alongside digital distribution statements.
-                </p>
+                <p className="text-[#666] text-xs leading-relaxed">Used for metadata in reports and track exports.</p>
               </div>
-              <Field
-                label="Distributor"
-                value={form.distributorName}
-                onChange={(v) => set('distributorName', v)}
-                placeholder="e.g. DistroKid, TuneCore, CD Baby"
-              />
-              <Field
-                label="Record Label"
-                value={form.labelName}
-                onChange={(v) => set('labelName', v)}
-                placeholder="e.g. GFB Records or Independent"
-                hint="Use 'Independent' if you're self-released"
-              />
+              <Field label="Distributor" value={form.distributorName} onChange={(v) => set('distributorName', v)} placeholder="e.g. DistroKid, TuneCore, CD Baby" />
+              <Field label="Record Label" value={form.labelName} onChange={(v) => set('labelName', v)} placeholder="e.g. GFB Records or Independent" hint="Use 'Independent' if you're self-released" />
             </>
           )}
         </div>
@@ -336,10 +339,7 @@ export default function ProfileSettingsModal({ onClose }: Props) {
         <div className="flex items-center justify-between px-8 py-5 border-t border-white/5 flex-shrink-0">
           <div className="flex items-center gap-2">
             {form.primaryPRO ? (
-              <>
-                <Disc3 size={14} className="text-[#C9FF3B]" />
-                <span className="text-[#C9FF3B] text-sm">Primary PRO: <strong>{form.primaryPRO}</strong></span>
-              </>
+              <><Disc3 size={14} className="text-[#C9FF3B]" /><span className="text-[#C9FF3B] text-sm">Primary PRO: <strong>{form.primaryPRO}</strong></span></>
             ) : (
               <span className="text-[#444] text-sm">No primary PRO set</span>
             )}
@@ -351,12 +351,7 @@ export default function ProfileSettingsModal({ onClose }: Props) {
               disabled={saving || saved}
               className="btn-primary flex items-center gap-2 text-sm py-2 px-5 disabled:opacity-70"
             >
-              {saved
-                ? <><Check size={15} /> Saved!</>
-                : saving
-                  ? 'Saving…'
-                  : <><Save size={15} /> Save Profile</>
-              }
+              {saved ? <><Check size={15} /> Saved!</> : saving ? 'Saving…' : <><Save size={15} /> Save Profile</>}
             </button>
           </div>
         </div>
