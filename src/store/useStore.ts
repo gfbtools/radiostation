@@ -81,6 +81,8 @@ interface StoreState {
   toggleDarkMode: () => void;
   libraryPanelOpen: boolean;
   setLibraryPanelOpen: (open: boolean) => void;
+  stationPanelOpen: boolean;
+  setStationPanelOpen: (open: boolean) => void;
   playlistPanelOpen: boolean;
   setPlaylistPanelOpen: (open: boolean) => void;
   reportsPanelOpen: boolean;
@@ -318,7 +320,13 @@ export const useStore = create<StoreState>()(
         }
         const { data: urlData } = await supabase.storage.from('audio').createSignedUrl(path, 60 * 60 * 24 * 365);
         const logoUrl = urlData?.signedUrl ?? '';
-        await supabase.from('profiles').update({ logo_url: path }).eq('id', user.id);
+        const { error: dbError } = await supabase.from('profiles').update({ logo_url: path }).eq('id', user.id);
+        if (dbError) {
+          console.error('Logo DB update error:', dbError);
+          get().addToast(`Logo saved to storage but profile update failed: ${dbError.message}`, 'error');
+        } else {
+          console.log('Logo path saved to DB:', path);
+        }
         set({ user: { ...user, logoUrl } });
         return logoUrl;
       },
@@ -563,6 +571,8 @@ export const useStore = create<StoreState>()(
       toggleDarkMode: () => set((s) => ({ isDarkMode: !s.isDarkMode })),
       libraryPanelOpen: false,
       setLibraryPanelOpen: (open) => set({ libraryPanelOpen: open }),
+      stationPanelOpen: false,
+      setStationPanelOpen: (open) => set({ stationPanelOpen: open }),
       playlistPanelOpen: false,
       setPlaylistPanelOpen: (open) => set({ playlistPanelOpen: open }),
       reportsPanelOpen: false,

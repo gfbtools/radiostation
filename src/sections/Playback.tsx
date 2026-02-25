@@ -3,9 +3,12 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle } from 'lucide-react';
 
+import { useStore } from '@/store/useStore';
+
 gsap.registerPlugin(ScrollTrigger);
 
 export default function Playback() {
+  const { setStationPanelOpen } = useStore();
   const sectionRef    = useRef<HTMLElement>(null);
   const headlineRef   = useRef<HTMLDivElement>(null);
   const nowPlayingRef = useRef<HTMLDivElement>(null);
@@ -33,7 +36,7 @@ export default function Playback() {
           <p className="text-[16px] text-[#B8B8B8] leading-relaxed mb-8 max-w-[38vw]">
             Gapless transitions. Background playback. Loop a single track, the whole list, or let it stop when the set ends—you're in control.
           </p>
-          <button className="btn-primary flex items-center gap-2"><Play size={18} /> Start Listening</button>
+          <button className="btn-primary flex items-center gap-2" onClick={() => setStationPanelOpen(true)}><Play size={18} /> Start Listening</button>
         </div>
         <div ref={nowPlayingRef} className="w-[40vw] max-w-[480px] glass-card p-8">
           <div className="flex items-center justify-between mb-6">

@@ -17,12 +17,11 @@ function scrollToSection(id: string) {
 }
 
 export default function Navigation() {
-  const { user, logout, onAirMode, onAirTrackIds } = useStore();
+  const { user, logout, onAirMode, onAirTrackIds, stationPanelOpen, setStationPanelOpen } = useStore();
   const isLive = onAirMode === 'all' || onAirTrackIds.length > 0;
   const [isScrolled, setIsScrolled]       = useState(false);
   const [isMobileMenuOpen, setMobileMenu] = useState(false);
   const [profileOpen, setProfileOpen]     = useState(false);
-  const [stationOpen, setStationOpen]     = useState(false);
   const [onAirOpen, setOnAirOpen]         = useState(false);
   const [userMenuOpen, setUserMenuOpen]   = useState(false);
 
@@ -57,7 +56,7 @@ export default function Navigation() {
               }}>
               <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${isLive ? 'bg-[#C9FF3B]' : 'bg-red-400'}`} /> On Air
             </button>
-            <button onClick={() => setStationOpen(true)}
+            <button onClick={() => setStationPanelOpen(true)}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ml-1"
               style={{ background: 'rgba(201,255,59,0.12)', color: '#C9FF3B', border: '1px solid rgba(201,255,59,0.2)' }}>
               <Radio size={15} /> My Station
@@ -97,7 +96,7 @@ export default function Navigation() {
                       style={{ color: isLive ? '#C9FF3B' : '#ff6b6b' }}>
                       <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${isLive ? 'bg-[#C9FF3B]' : 'bg-red-400'}`} /> On Air
                     </button>
-                    <button onClick={() => { setStationOpen(true); setUserMenuOpen(false); }}
+                    <button onClick={() => { setStationPanelOpen(true); setUserMenuOpen(false); }}
                       className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#C9FF3B] hover:bg-[#C9FF3B]/5 transition-colors">
                       <Radio size={15} /> My Station
                     </button>
@@ -133,7 +132,7 @@ export default function Navigation() {
                 style={{ color: isLive ? '#C9FF3B' : '#ff6b6b' }}>
                 <span className={`w-2 h-2 rounded-full animate-pulse ${isLive ? 'bg-[#C9FF3B]' : 'bg-red-400'}`} /> On Air
               </button>
-              <button onClick={() => { setStationOpen(true); setMobileMenu(false); }}
+              <button onClick={() => { setStationPanelOpen(true); setMobileMenu(false); }}
                 className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors"
                 style={{ color: '#C9FF3B' }}>
                 <Radio size={18} /> My Station
@@ -153,7 +152,7 @@ export default function Navigation() {
       )}
 
       {profileOpen && <ProfileSettingsModal onClose={() => setProfileOpen(false)} />}
-      {stationOpen  && <MyStationPanel      onClose={() => setStationOpen(false)} />}
+      {stationOpen  && <MyStationPanel      onClose={() => setStationPanelOpen(false)} />}
       {onAirOpen    && <OnAirPanel          onClose={() => setOnAirOpen(false)} />}
     </>
   );
