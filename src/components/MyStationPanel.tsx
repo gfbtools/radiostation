@@ -15,9 +15,20 @@ export default function MyStationPanel({ onClose }: Props) {
   const [copiedEmbed, setCopiedEmbed] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoPreview, setLogoPreview]     = useState<string>(user?.logoUrl ?? '');
+  const [theme, setTheme]                 = useState('dark');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const stationUrl = `${WIDGET_BASE}/?userId=${user?.id}`;
+  const themes = [
+    { id: 'dark',     label: 'Dark',     color: '#C9FF3B', bg: '#0B0B0D' },
+    { id: 'green',    label: 'Forest',   color: '#00FF87', bg: '#060F06' },
+    { id: 'purple',   label: 'Violet',   color: '#A78BFA', bg: '#0A080F' },
+    { id: 'warm',     label: 'Amber',    color: '#FF9A3C', bg: '#100A06' },
+    { id: 'midnight', label: 'Midnight', color: '#5B9BFF', bg: '#070B14' },
+  ];
+
+  const stationUrl = theme === 'dark'
+    ? `${WIDGET_BASE}/?userId=${user?.id}`
+    : `${WIDGET_BASE}/?userId=${user?.id}&theme=${theme}`;
   const embedCode  = `<iframe\n  src="${stationUrl}"\n  width="380"\n  height="520"\n  frameborder="0"\n  allow="autoplay"\n  style="border-radius:16px;"\n></iframe>`;
 
   const copyLink = async () => {
@@ -143,6 +154,30 @@ export default function MyStationPanel({ onClose }: Props) {
                   style={{ borderRadius: '12px', transform: 'scale(0.85)', transformOrigin: 'top left', width: '118%', height: '118%' }}
                 />
               </div>
+            </div>
+          </div>
+
+          {/* ── Theme picker ── */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="text-[#B8B8B8] text-xs uppercase tracking-wide">Color Theme</span>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {themes.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setTheme(t.id)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs transition-all"
+                  style={{
+                    background: theme === t.id ? `${t.color}18` : 'rgba(255,255,255,0.03)',
+                    border: theme === t.id ? `1px solid ${t.color}55` : '1px solid rgba(255,255,255,0.07)',
+                    color: theme === t.id ? t.color : '#B8B8B8',
+                  }}
+                >
+                  <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: t.color }} />
+                  {t.label}
+                </button>
+              ))}
             </div>
           </div>
 
