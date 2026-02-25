@@ -85,7 +85,7 @@ export default function Hero() {
           trigger: section,
           start: 'top top',
           end: '+=130%',
-          pin: true,
+          pin: window.innerWidth > 768,
           scrub: 0.6,
           onLeaveBack: () => {
             // Reset all elements to visible when scrolling back to top
