@@ -5,6 +5,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  logoUrl?: string;
   primaryPRO?: PROName;
   ascapId?: string;
   bmiId?: string;

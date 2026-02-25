@@ -19,6 +19,7 @@ interface StoreState {
   register: (email: string, password: string, name: string) => Promise<boolean>;
   logout: () => void;
   updateProfile: (data: Partial<User>) => void;
+  uploadLogo: (file: File) => Promise<string | null>;
   initAuth: () => Promise<void>;
   tracks: Track[];
   tracksLoading: boolean;
@@ -161,6 +162,7 @@ export const useStore = create<StoreState>()(
             id: session.user.id,
             email: session.user.email ?? '',
             name: profile?.name ?? session.user.email?.split('@')[0] ?? '',
+            logoUrl:            profile?.logo_url ?? '',
             ascapId: profile?.ascap_id ?? '',
             primaryPRO:         profile?.primary_pro ?? undefined,
             bmiId:              profile?.bmi_id ?? '',
@@ -200,6 +202,7 @@ export const useStore = create<StoreState>()(
         const user: User = {
           id: data.user.id, email: data.user.email ?? '',
           name: profile?.name ?? email.split('@')[0],
+          logoUrl:            profile?.logo_url ?? '',
           ascapId: profile?.ascap_id ?? '',
           primaryPRO:         profile?.primary_pro ?? undefined,
           bmiId:            profile?.bmi_id ?? '',
@@ -260,6 +263,7 @@ export const useStore = create<StoreState>()(
         if (!user) return;
         await supabase.from('profiles').update({
           name:               data.name,
+          logo_url:           data.logoUrl,
           ascap_id:           data.ascapId,
           primary_pro:        data.primaryPRO,
           bmi_id:             data.bmiId,
@@ -277,6 +281,20 @@ export const useStore = create<StoreState>()(
           updated_at:         new Date().toISOString(),
         }).eq('id', user.id);
         set({ user: { ...user, ...data, updatedAt: new Date() } });
+      },
+
+      uploadLogo: async (file: File) => {
+        const { user } = get();
+        if (!user) return null;
+        const ext = file.name.split('.').pop();
+        const path = `logos/${user.id}/logo.${ext}`;
+        const { error } = await supabase.storage.from('audio').upload(path, file, { upsert: true });
+        if (error) { get().addToast('Logo upload failed', 'error'); return null; }
+        const { data: urlData } = await supabase.storage.from('audio').createSignedUrl(path, 60 * 60 * 24 * 365);
+        const logoUrl = urlData?.signedUrl ?? '';
+        await supabase.from('profiles').update({ logo_url: path }).eq('id', user.id);
+        set({ user: { ...user, logoUrl: path } });
+        return logoUrl;
       },
 
       tracks: [],
