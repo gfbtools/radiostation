@@ -310,8 +310,12 @@ export const useStore = create<StoreState>()(
         if (!user) return null;
         const ext = file.name.split('.').pop();
         const path = `logos/${user.id}/logo.${ext}`;
-        const { error } = await supabase.storage.from('audio').upload(path, file, { upsert: true });
-        if (error) { get().addToast('Logo upload failed', 'error'); return null; }
+        const { error } = await supabase.storage.from('audio').upload(path, file, { upsert: true, contentType: file.type });
+        if (error) {
+          console.error('Logo upload error:', error);
+          get().addToast(`Logo upload failed: ${error.message}`, 'error');
+          return null;
+        }
         const { data: urlData } = await supabase.storage.from('audio').createSignedUrl(path, 60 * 60 * 24 * 365);
         const logoUrl = urlData?.signedUrl ?? '';
         await supabase.from('profiles').update({ logo_url: path }).eq('id', user.id);

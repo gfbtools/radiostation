@@ -37,7 +37,7 @@ export default function MyStationPanel({ onClose }: Props) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) { addToast('Please select an image file', 'error'); return; }
-    if (file.size > 5 * 1024 * 1024) { addToast('Image must be under 5MB', 'error'); return; }
+    if (file.size > 2 * 1024 * 1024) { addToast('Image must be under 2MB', 'error'); return; }
     const reader = new FileReader();
     reader.onload = (ev) => setLogoPreview(ev.target?.result as string);
     reader.readAsDataURL(file);
@@ -122,7 +122,7 @@ export default function MyStationPanel({ onClose }: Props) {
                   <Upload size={12} />
                   {logoUploading ? 'Uploading…' : logoPreview ? 'Change Logo' : 'Upload Logo'}
                 </button>
-                <p className="text-[#444] text-[10px] text-center">Logo shows in your widget header</p>
+                <p className="text-[#444] text-[10px] text-center">JPG, PNG or WebP · max 2MB</p>
               </div>
             </div>
 
