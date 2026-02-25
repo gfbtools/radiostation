@@ -17,7 +17,8 @@ function scrollToSection(id: string) {
 }
 
 export default function Navigation() {
-  const { user, logout } = useStore();
+  const { user, logout, onAirMode, onAirTrackIds } = useStore();
+  const isLive = onAirMode === 'all' || onAirTrackIds.length > 0;
   const [isScrolled, setIsScrolled]       = useState(false);
   const [isMobileMenuOpen, setMobileMenu] = useState(false);
   const [profileOpen, setProfileOpen]     = useState(false);
@@ -49,8 +50,12 @@ export default function Navigation() {
             ))}
             <button onClick={() => setOnAirOpen(true)}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ml-1"
-              style={{ background: 'rgba(255,80,80,0.1)', color: '#ff6b6b', border: '1px solid rgba(255,80,80,0.2)' }}>
-              <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" /> On Air
+              style={{
+                background: isLive ? 'rgba(201,255,59,0.1)' : 'rgba(255,80,80,0.1)',
+                color: isLive ? '#C9FF3B' : '#ff6b6b',
+                border: isLive ? '1px solid rgba(201,255,59,0.2)' : '1px solid rgba(255,80,80,0.2)',
+              }}>
+              <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${isLive ? 'bg-[#C9FF3B]' : 'bg-red-400'}`} /> On Air
             </button>
             <button onClick={() => setStationOpen(true)}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ml-1"
@@ -88,9 +93,9 @@ export default function Navigation() {
                       <UserCircle size={15} /> Profile & Rights
                     </button>
                     <button onClick={() => { setOnAirOpen(true); setUserMenuOpen(false); }}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-red-500/10 transition-colors"
-                      style={{ color: '#ff6b6b' }}>
-                      <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" /> On Air
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-white/5"
+                      style={{ color: isLive ? '#C9FF3B' : '#ff6b6b' }}>
+                      <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${isLive ? 'bg-[#C9FF3B]' : 'bg-red-400'}`} /> On Air
                     </button>
                     <button onClick={() => { setStationOpen(true); setUserMenuOpen(false); }}
                       className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#C9FF3B] hover:bg-[#C9FF3B]/5 transition-colors">
@@ -125,8 +130,8 @@ export default function Navigation() {
               ))}
               <button onClick={() => { setOnAirOpen(true); setMobileMenu(false); }}
                 className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors"
-                style={{ color: '#ff6b6b' }}>
-                <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" /> On Air
+                style={{ color: isLive ? '#C9FF3B' : '#ff6b6b' }}>
+                <span className={`w-2 h-2 rounded-full animate-pulse ${isLive ? 'bg-[#C9FF3B]' : 'bg-red-400'}`} /> On Air
               </button>
               <button onClick={() => { setStationOpen(true); setMobileMenu(false); }}
                 className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors"
