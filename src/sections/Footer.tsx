@@ -150,7 +150,7 @@ export default function Footer() {
           {/* Logo */}
           <div>
             <span className="text-[#F2F2F2] font-bold text-xl tracking-tight">
-              RADIO
+              STUDIO2RADIO
             </span>
             <p className="text-[#666] text-sm mt-2">
               Your station. Your sound. Your story.

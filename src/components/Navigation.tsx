@@ -35,7 +35,7 @@ export default function Navigation() {
         isScrolled ? 'bg-[#0B0B0D]/90 backdrop-blur-xl border-b border-white/5' : 'bg-transparent'
       }`}>
         <div className="flex items-center justify-between px-[4vw] py-4">
-          <a href="#" className="text-[#F2F2F2] font-bold text-xl tracking-tight">RADIO</a>
+          <a href="#" className="text-[#F2F2F2] font-bold text-xl tracking-tight">STUDIO2RADIO</a>
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-1">
