@@ -34,7 +34,7 @@ export default function Reporting() {
           trigger: section,
           start: 'top top',
           end: '+=130%',
-          pin: window.innerWidth > 768,
+          pin: true,
           scrub: 0.6,
         },
       });
