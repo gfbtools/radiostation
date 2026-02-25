@@ -152,7 +152,7 @@ export default function Navigation() {
       )}
 
       {profileOpen && <ProfileSettingsModal onClose={() => setProfileOpen(false)} />}
-      {stationOpen  && <MyStationPanel      onClose={() => setStationPanelOpen(false)} />}
+      {stationPanelOpen && <MyStationPanel      onClose={() => setStationPanelOpen(false)} />}
       {onAirOpen    && <OnAirPanel          onClose={() => setOnAirOpen(false)} />}
     </>
   );
