@@ -1,7 +1,4 @@
-import { useEffect, useRef } from 'react';
-import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-
+import { useEffect } from 'react';
 import Navigation from '@/components/Navigation';
 import PlayerBar from '@/components/PlayerBar';
 import ToastContainer from '@/components/ToastContainer';
@@ -18,10 +15,7 @@ import Footer from '@/sections/Footer';
 
 import { useStore } from '@/store/useStore';
 
-gsap.registerPlugin(ScrollTrigger);
-
 function App() {
-  const mainRef = useRef<HTMLElement>(null);
   const { isAuthenticated, isLoadingAuth, initAuth } = useStore();
 
   // Boot: check if user is already logged in
@@ -29,48 +23,7 @@ function App() {
     initAuth();
   }, []);
 
-  useEffect(() => {
-    if (!isAuthenticated) return;
 
-    const timer = setTimeout(() => {
-      const pinned = ScrollTrigger.getAll()
-        .filter((st) => st.vars.pin)
-        .sort((a, b) => a.start - b.start);
-
-      const maxScroll = ScrollTrigger.maxScroll(window);
-      if (!maxScroll || pinned.length === 0) return;
-
-      const pinnedRanges = pinned.map((st) => ({
-        start: st.start / maxScroll,
-        end: (st.end ?? st.start) / maxScroll,
-        center: (st.start + ((st.end ?? st.start) - st.start) * 0.5) / maxScroll,
-      }));
-
-      ScrollTrigger.create({
-        snap: {
-          snapTo: (value) => {
-            const inPinned = pinnedRanges.some(
-              (r) => value >= r.start - 0.08 && value <= r.end + 0.08
-            );
-            if (!inPinned) return value;
-            return pinnedRanges.reduce(
-              (closest, r) =>
-                Math.abs(r.center - value) < Math.abs(closest - value) ? r.center : closest,
-              pinnedRanges[0]?.center ?? 0
-            );
-          },
-          duration: { min: 0.15, max: 0.35 },
-          delay: 0,
-          ease: 'power2.out',
-        },
-      });
-    }, 500);
-
-    return () => {
-      clearTimeout(timer);
-      ScrollTrigger.getAll().forEach((st) => st.kill());
-    };
-  }, [isAuthenticated]);
 
   // Loading splash
   if (isLoadingAuth) {
@@ -100,7 +53,7 @@ function App() {
     <div className="relative min-h-screen" style={{ backgroundColor: '#0B0B0D' }}>
       <div className="grain-overlay" />
       <Navigation />
-      <main ref={mainRef} className="relative">
+      <main className="relative pb-[110px] md:pb-[80px]">
         <Hero />
         <Library />
         <PlaylistSection />

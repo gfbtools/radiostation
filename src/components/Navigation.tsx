@@ -3,6 +3,7 @@ import { Music, ListMusic, BarChart3, Settings, Menu, X, UserCircle, LogOut, Rad
 import { useStore } from '@/store/useStore';
 import ProfileSettingsModal from '@/components/ProfileSettingsModal';
 import MyStationPanel from '@/components/MyStationPanel';
+import OnAirPanel from '@/components/OnAirPanel';
 
 const navItems = [
   { label: 'Library',   icon: Music,     target: 'library' },
@@ -21,6 +22,7 @@ export default function Navigation() {
   const [isMobileMenuOpen, setMobileMenu] = useState(false);
   const [profileOpen, setProfileOpen]     = useState(false);
   const [stationOpen, setStationOpen]     = useState(false);
+  const [onAirOpen, setOnAirOpen]         = useState(false);
   const [userMenuOpen, setUserMenuOpen]   = useState(false);
 
   useEffect(() => {
@@ -34,8 +36,8 @@ export default function Navigation() {
       <nav className={`fixed top-0 left-0 right-0 z-[90] transition-all duration-300 ${
         isScrolled ? 'bg-[#0B0B0D]/90 backdrop-blur-xl border-b border-white/5' : 'bg-transparent'
       }`}>
-        <div className="flex items-center justify-between px-[4vw] py-4">
-          <a href="#" className="text-[#F2F2F2] font-bold text-xl tracking-tight">STUDIO2RADIO</a>
+        <div className="flex items-center justify-between px-4 md:px-[4vw] py-4 min-w-0">
+          <a href="#" className="text-[#F2F2F2] font-bold text-lg md:text-xl tracking-tight flex-shrink-0">STUDIO2RADIO</a>
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-1">
@@ -45,6 +47,11 @@ export default function Navigation() {
                 <Icon size={16} /><span className="text-sm">{label}</span>
               </button>
             ))}
+            <button onClick={() => setOnAirOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ml-1"
+              style={{ background: 'rgba(255,80,80,0.1)', color: '#ff6b6b', border: '1px solid rgba(255,80,80,0.2)' }}>
+              <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" /> On Air
+            </button>
             <button onClick={() => setStationOpen(true)}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ml-1"
               style={{ background: 'rgba(201,255,59,0.12)', color: '#C9FF3B', border: '1px solid rgba(201,255,59,0.2)' }}>
@@ -80,6 +87,11 @@ export default function Navigation() {
                       className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#B8B8B8] hover:text-[#F2F2F2] hover:bg-white/5 transition-colors">
                       <UserCircle size={15} /> Profile & Rights
                     </button>
+                    <button onClick={() => { setOnAirOpen(true); setUserMenuOpen(false); }}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-red-500/10 transition-colors"
+                      style={{ color: '#ff6b6b' }}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" /> On Air
+                    </button>
                     <button onClick={() => { setStationOpen(true); setUserMenuOpen(false); }}
                       className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#C9FF3B] hover:bg-[#C9FF3B]/5 transition-colors">
                       <Radio size={15} /> My Station
@@ -97,34 +109,47 @@ export default function Navigation() {
         </div>
       </nav>
 
-      {/* Mobile Menu */}
-      <div className={`fixed inset-0 z-[80] bg-[#0B0B0D]/98 backdrop-blur-xl transition-all duration-300 md:hidden ${
-        isMobileMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
-      }`}>
-        <div className="flex flex-col items-center justify-center h-full gap-6">
-          {navItems.map(({ label, icon: Icon, target }) => (
-            <button key={label} onClick={() => { scrollToSection(target); setMobileMenu(false); }}
-              className="flex items-center gap-3 text-[#F2F2F2] text-2xl">
-              <Icon size={24} /> {label}
-            </button>
-          ))}
-          <button onClick={() => { setStationOpen(true); setMobileMenu(false); }}
-            className="flex items-center gap-3 text-2xl font-bold" style={{ color: '#C9FF3B' }}>
-            <Radio size={24} /> My Station
-          </button>
-          <button className="flex items-center gap-3 text-[#F2F2F2] text-2xl"
-            onClick={() => { setProfileOpen(true); setMobileMenu(false); }}>
-            <Settings size={24} /> PRO Accounts
-          </button>
-          <button className="flex items-center gap-3 text-red-400 text-2xl"
-            onClick={() => { logout(); setMobileMenu(false); }}>
-            <LogOut size={24} /> Sign Out
-          </button>
-        </div>
-      </div>
+      {/* Mobile Menu — compact dropdown, fixed below nav */}
+      {isMobileMenuOpen && (
+        <>
+          <div className="fixed inset-0 z-[78]" onClick={() => setMobileMenu(false)} />
+          <div className="fixed top-[60px] left-0 right-0 z-[79] md:hidden"
+            style={{ background: 'rgba(11,11,13,0.98)', borderBottom: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(20px)' }}>
+            <div className="flex flex-col px-4 py-3 gap-1">
+              {navItems.map(({ label, icon: Icon, target }) => (
+                <button key={label}
+                  onClick={() => { scrollToSection(target); setMobileMenu(false); }}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-[#F2F2F2] text-sm hover:bg-white/5 transition-colors text-left">
+                  <Icon size={18} /> {label}
+                </button>
+              ))}
+              <button onClick={() => { setOnAirOpen(true); setMobileMenu(false); }}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors"
+                style={{ color: '#ff6b6b' }}>
+                <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" /> On Air
+              </button>
+              <button onClick={() => { setStationOpen(true); setMobileMenu(false); }}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors"
+                style={{ color: '#C9FF3B' }}>
+                <Radio size={18} /> My Station
+              </button>
+              <button onClick={() => { setProfileOpen(true); setMobileMenu(false); }}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-[#B8B8B8] text-sm hover:bg-white/5 transition-colors">
+                <Settings size={18} /> PRO Accounts
+              </button>
+              <div className="border-t border-white/5 my-1" />
+              <button onClick={() => { logout(); setMobileMenu(false); }}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 text-sm hover:bg-red-500/10 transition-colors">
+                <LogOut size={18} /> Sign Out
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {profileOpen && <ProfileSettingsModal onClose={() => setProfileOpen(false)} />}
       {stationOpen  && <MyStationPanel      onClose={() => setStationOpen(false)} />}
+      {onAirOpen    && <OnAirPanel          onClose={() => setOnAirOpen(false)} />}
     </>
   );
 }

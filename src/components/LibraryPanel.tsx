@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Play, Pause, Trash2, Upload, Music, Search, Clock } from 'lucide-react';
+import { X, Play, Pause, Trash2, Upload, Music, Search, Clock, GripVertical } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { audioEngine } from '@/lib/audioEngine';
 import TrackUploadModal from './TrackUploadModal';
@@ -11,17 +11,24 @@ interface Props {
 }
 
 export default function LibraryPanel({ onClose }: Props) {
-  const { tracks, player, playTrack, togglePlay, deleteTrack, addToast } = useStore();
+  const { tracks, player, playTrack, togglePlay, deleteTrack, reorderTracks, addToast } = useStore();
   const [search, setSearch] = useState('');
   const [showUpload, setShowUpload] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
-  const filtered = tracks.filter((t) =>
-    !search ||
-    t.title.toLowerCase().includes(search.toLowerCase()) ||
-    t.composer.toLowerCase().includes(search.toLowerCase()) ||
-    (t.genre?.toLowerCase().includes(search.toLowerCase()))
-  );
+  const dragId = useRef<string | null>(null);
+  const dragOverId = useRef<string | null>(null);
+  const [dragActiveId, setDragActiveId] = useState<string | null>(null);
+  const [dragOverActiveId, setDragOverActiveId] = useState<string | null>(null);
+
+  const isSearching = search.trim().length > 0;
+  const filtered = isSearching
+    ? tracks.filter((t) =>
+        t.title.toLowerCase().includes(search.toLowerCase()) ||
+        t.composer.toLowerCase().includes(search.toLowerCase()) ||
+        (t.genre?.toLowerCase().includes(search.toLowerCase()))
+      )
+    : tracks;
 
   const formatDur = (s: number) => {
     if (!s) return '--:--';
@@ -34,10 +41,7 @@ export default function LibraryPanel({ onClose }: Props) {
     if (player.currentTrack?.id === track.id) {
       togglePlay();
     } else {
-      if (!track.fileUrl) {
-        addToast('No audio file — upload one first', 'error');
-        return;
-      }
+      if (!track.fileUrl) { addToast('No audio file — upload one first', 'error'); return; }
       audioEngine.load(track.fileUrl);
       playTrack(track);
     }
@@ -54,32 +58,67 @@ export default function LibraryPanel({ onClose }: Props) {
     }
   };
 
-  const isPlaying = (track: Track) =>
-    player.currentTrack?.id === track.id && player.isPlaying;
-
+  const isPlaying = (track: Track) => player.currentTrack?.id === track.id && player.isPlaying;
   const isCurrent = (track: Track) => player.currentTrack?.id === track.id;
+
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    dragId.current = id;
+    setDragActiveId(id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverId.current !== id) {
+      dragOverId.current = id;
+      setDragOverActiveId(id);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    const sourceId = dragId.current;
+    if (!sourceId || sourceId === targetId) return;
+    const ids = tracks.map((t) => t.id);
+    const fromIdx = ids.indexOf(sourceId);
+    const toIdx = ids.indexOf(targetId);
+    if (fromIdx === -1 || toIdx === -1) return;
+    const reordered = [...ids];
+    reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, sourceId);
+    reorderTracks(reordered);
+    dragId.current = null;
+    dragOverId.current = null;
+    setDragActiveId(null);
+    setDragOverActiveId(null);
+  };
+
+  const handleDragEnd = () => {
+    dragId.current = null;
+    dragOverId.current = null;
+    setDragActiveId(null);
+    setDragOverActiveId(null);
+  };
 
   const content = (
     <>
       <div className="fixed inset-0 z-[150] flex items-center justify-center p-4" onClick={onClose}>
         <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-        <div
-          className="relative w-full max-w-3xl max-h-[88vh] flex flex-col glass-card z-10"
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div className="relative w-full max-w-3xl max-h-[88vh] flex flex-col glass-card z-10" onClick={(e) => e.stopPropagation()}>
+
           {/* Header */}
           <div className="flex items-center justify-between p-8 pb-4 flex-shrink-0">
             <div>
               <h2 className="text-[#F2F2F2] text-2xl font-semibold">Your Library</h2>
-              <p className="text-[#B8B8B8] text-sm mt-1">{tracks.length} track{tracks.length !== 1 ? 's' : ''}</p>
+              <p className="text-[#B8B8B8] text-sm mt-1">
+                {tracks.length} track{tracks.length !== 1 ? 's' : ''}
+                {!isSearching && tracks.length > 1 && <span className="text-[#555] text-xs ml-2">· drag to reorder</span>}
+              </p>
             </div>
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowUpload(true)}
-                className="btn-primary flex items-center gap-2 text-sm py-2 px-4"
-              >
-                <Upload size={15} />
-                Upload Track
+              <button onClick={() => setShowUpload(true)} className="btn-primary flex items-center gap-2 text-sm py-2 px-4">
+                <Upload size={15} /> Upload Track
               </button>
               <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/5 transition-colors">
                 <X size={20} className="text-[#B8B8B8]" />
@@ -92,9 +131,7 @@ export default function LibraryPanel({ onClose }: Props) {
             <div className="relative">
               <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#666]" />
               <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                type="text" value={search} onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search by title, composer, or genre…"
                 className="w-full pl-11 pr-4 py-3 rounded-xl text-[#F2F2F2] text-sm outline-none"
                 style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
@@ -129,68 +166,56 @@ export default function LibraryPanel({ onClose }: Props) {
                 {filtered.map((track, i) => (
                   <div
                     key={track.id}
-                    className="flex items-center gap-4 p-4 rounded-2xl transition-all group"
+                    draggable={!isSearching}
+                    onDragStart={!isSearching ? (e) => handleDragStart(e, track.id) : undefined}
+                    onDragOver={!isSearching ? (e) => handleDragOver(e, track.id) : undefined}
+                    onDrop={!isSearching ? (e) => handleDrop(e, track.id) : undefined}
+                    onDragEnd={!isSearching ? handleDragEnd : undefined}
+                    className="flex items-center gap-3 p-4 rounded-2xl transition-all group"
                     style={{
-                      background: isCurrent(track) ? 'rgba(201,255,59,0.06)' : 'rgba(255,255,255,0.02)',
-                      border: isCurrent(track) ? '1px solid rgba(201,255,59,0.2)' : '1px solid rgba(255,255,255,0.05)',
+                      background: isCurrent(track) ? 'rgba(201,255,59,0.06)' : dragOverActiveId === track.id && dragActiveId !== track.id ? 'rgba(201,255,59,0.04)' : 'rgba(255,255,255,0.02)',
+                      border: isCurrent(track) ? '1px solid rgba(201,255,59,0.2)' : dragOverActiveId === track.id && dragActiveId !== track.id ? '1px solid rgba(201,255,59,0.3)' : '1px solid rgba(255,255,255,0.05)',
+                      opacity: dragActiveId === track.id ? 0.35 : 1,
+                      cursor: isSearching ? 'default' : 'grab',
+                      transition: 'opacity 0.15s, border-color 0.15s, background 0.15s',
                     }}
                   >
+                    {/* Drag handle */}
+                    {!isSearching && (
+                      <GripVertical size={16} className="text-[#333] group-hover:text-[#555] flex-shrink-0 transition-colors" />
+                    )}
+
                     {/* Track number / play button */}
                     <div className="w-8 text-center flex-shrink-0">
                       <span className="text-[#444] text-sm group-hover:hidden">{i + 1}</span>
-                      <button
-                        onClick={() => handlePlay(track)}
-                        className="hidden group-hover:flex items-center justify-center w-8 h-8 rounded-lg"
-                        style={{ background: 'rgba(201,255,59,0.15)' }}
-                      >
-                        {isPlaying(track)
-                          ? <Pause size={14} className="text-[#C9FF3B]" />
-                          : <Play size={14} className="text-[#C9FF3B]" />}
+                      <button onClick={() => handlePlay(track)} className="hidden group-hover:flex items-center justify-center w-8 h-8 rounded-lg" style={{ background: 'rgba(201,255,59,0.15)' }}>
+                        {isPlaying(track) ? <Pause size={14} className="text-[#C9FF3B]" /> : <Play size={14} className="text-[#C9FF3B]" />}
                       </button>
-                      {/* Show pause/play icon when current even without hover */}
                       {isCurrent(track) && (
-                        <button
-                          onClick={() => handlePlay(track)}
-                          className="flex group-hover:hidden items-center justify-center w-8 h-8 rounded-lg"
-                          style={{ background: 'rgba(201,255,59,0.15)' }}
-                        >
-                          {isPlaying(track)
-                            ? <Pause size={14} className="text-[#C9FF3B]" />
-                            : <Play size={14} className="text-[#C9FF3B]" />}
+                        <button onClick={() => handlePlay(track)} className="flex group-hover:hidden items-center justify-center w-8 h-8 rounded-lg" style={{ background: 'rgba(201,255,59,0.15)' }}>
+                          {isPlaying(track) ? <Pause size={14} className="text-[#C9FF3B]" /> : <Play size={14} className="text-[#C9FF3B]" />}
                         </button>
                       )}
                     </div>
 
                     {/* Track info */}
                     <div className="flex-1 min-w-0">
-                      <p className={`font-medium truncate text-sm ${isCurrent(track) ? 'text-[#C9FF3B]' : 'text-[#F2F2F2]'}`}>
-                        {track.title}
-                      </p>
+                      <p className={`font-medium truncate text-sm ${isCurrent(track) ? 'text-[#C9FF3B]' : 'text-[#F2F2F2]'}`}>{track.title}</p>
                       <p className="text-[#666] text-xs truncate">{track.composer}</p>
                     </div>
 
-                    {/* Genre */}
-                    {track.genre && (
-                      <span className="tag-pill text-xs hidden sm:inline-flex">{track.genre}</span>
-                    )}
+                    {track.genre && <span className="tag-pill text-xs hidden sm:inline-flex">{track.genre}</span>}
+                    {!track.fileUrl && <span className="text-yellow-500/70 text-xs flex-shrink-0">No file</span>}
 
-                    {/* No file warning */}
-                    {!track.fileUrl && (
-                      <span className="text-yellow-500/70 text-xs flex-shrink-0">No file</span>
-                    )}
-
-                    {/* Duration */}
                     <div className="flex items-center gap-1 text-[#666] text-xs w-12 text-right flex-shrink-0">
-                      <Clock size={11} />
-                      {formatDur(track.duration)}
+                      <Clock size={11} />{formatDur(track.duration)}
                     </div>
 
-                    {/* Delete */}
                     <button
                       onClick={() => handleDelete(track.id)}
                       className="p-2 rounded-lg transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100"
                       style={{ color: confirmDelete === track.id ? '#ff5555' : '#666' }}
-                      title={confirmDelete === track.id ? 'Click again to confirm delete' : 'Delete track'}
+                      title={confirmDelete === track.id ? 'Click again to confirm' : 'Delete track'}
                     >
                       <Trash2 size={15} />
                     </button>
@@ -201,8 +226,6 @@ export default function LibraryPanel({ onClose }: Props) {
           </div>
         </div>
       </div>
-
-      {/* Upload modal stacked on top */}
       {showUpload && <TrackUploadModal onClose={() => setShowUpload(false)} />}
     </>
   );

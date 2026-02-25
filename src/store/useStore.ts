@@ -11,6 +11,15 @@ import type {
   Toast,
 } from '@/types';
 
+// Resolve a stored logo path (or already-signed URL) to a fresh signed URL
+async function resolveLogoUrl(logoPath: string): Promise<string> {
+  if (!logoPath) return '';
+  // Already a full URL (signed or public)
+  if (logoPath.startsWith('http')) return logoPath;
+  const { data } = await supabase.storage.from('audio').createSignedUrl(logoPath, 60 * 60 * 24 * 365);
+  return data?.signedUrl ?? '';
+}
+
 interface StoreState {
   user: User | null;
   isAuthenticated: boolean;
@@ -27,7 +36,13 @@ interface StoreState {
   addTrack: (track: Omit<Track, 'id' | 'uploadDate' | 'updatedAt'>, file?: File) => Promise<void>;
   updateTrack: (id: string, data: Partial<Track>) => Promise<void>;
   deleteTrack: (id: string) => Promise<void>;
+  reorderTracks: (trackIds: string[]) => void;
   getTrackById: (id: string) => Track | undefined;
+  // On-Air config
+  onAirTrackIds: string[];
+  onAirPlaylistIds: string[];
+  onAirMode: 'all' | 'selected';
+  setOnAir: (trackIds: string[], playlistIds: string[], mode: 'all' | 'selected') => Promise<void>;
   playlists: Playlist[];
   playlistsLoading: boolean;
   fetchPlaylists: () => Promise<void>;
@@ -162,7 +177,7 @@ export const useStore = create<StoreState>()(
             id: session.user.id,
             email: session.user.email ?? '',
             name: profile?.name ?? session.user.email?.split('@')[0] ?? '',
-            logoUrl:            profile?.logo_url ?? '',
+            logoUrl:            await resolveLogoUrl(profile?.logo_url ?? ''),
             ascapId: profile?.ascap_id ?? '',
             primaryPRO:         profile?.primary_pro ?? undefined,
             bmiId:              profile?.bmi_id ?? '',
@@ -181,6 +196,13 @@ export const useStore = create<StoreState>()(
             updatedAt: new Date(),
           };
           set({ user, isAuthenticated: true, isLoadingAuth: false });
+          // Load radio config if saved
+          if (profile?.radio_config) {
+            try {
+              const rc = JSON.parse(profile.radio_config as string);
+              set({ onAirTrackIds: rc.trackIds ?? [], onAirPlaylistIds: rc.playlistIds ?? [], onAirMode: rc.mode ?? 'all' });
+            } catch { /* ignore parse errors */ }
+          }
           await get().fetchTracks();
           await get().fetchPlaylists();
           await get().fetchPlayLogs();
@@ -202,7 +224,7 @@ export const useStore = create<StoreState>()(
         const user: User = {
           id: data.user.id, email: data.user.email ?? '',
           name: profile?.name ?? email.split('@')[0],
-          logoUrl:            profile?.logo_url ?? '',
+          logoUrl:            await resolveLogoUrl(profile?.logo_url ?? ''),
           ascapId: profile?.ascap_id ?? '',
           primaryPRO:         profile?.primary_pro ?? undefined,
           bmiId:            profile?.bmi_id ?? '',
@@ -293,7 +315,7 @@ export const useStore = create<StoreState>()(
         const { data: urlData } = await supabase.storage.from('audio').createSignedUrl(path, 60 * 60 * 24 * 365);
         const logoUrl = urlData?.signedUrl ?? '';
         await supabase.from('profiles').update({ logo_url: path }).eq('id', user.id);
-        set({ user: { ...user, logoUrl: path } });
+        set({ user: { ...user, logoUrl } });
         return logoUrl;
       },
 
@@ -367,6 +389,24 @@ export const useStore = create<StoreState>()(
       },
 
       getTrackById: (id) => get().tracks.find((t) => t.id === id),
+
+      reorderTracks: (trackIds) => {
+        const { tracks } = get();
+        const reordered = trackIds.map((id) => tracks.find((t) => t.id === id)).filter(Boolean) as Track[];
+        set({ tracks: reordered });
+      },
+
+      onAirTrackIds: [],
+      onAirPlaylistIds: [],
+      onAirMode: 'all',
+      setOnAir: async (trackIds, playlistIds, mode) => {
+        const { user } = get();
+        set({ onAirTrackIds: trackIds, onAirPlaylistIds: playlistIds, onAirMode: mode });
+        if (!user) return;
+        // Persist to profiles as radio_config JSON
+        const config = JSON.stringify({ trackIds, playlistIds, mode });
+        await supabase.from('profiles').update({ radio_config: config } as Record<string, unknown>).eq('id', user.id);
+      },
 
       playlists: [],
       playlistsLoading: false,
