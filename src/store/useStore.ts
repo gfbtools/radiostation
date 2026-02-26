@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '@/lib/supabase';
 import { analyzeGain } from '@/lib/analyzeGain';
-import { analyzeBPM } from '@/lib/analyzeBPM';
 import type {
   User,
   Track,
@@ -381,19 +380,13 @@ export const useStore = create<StoreState>()(
         let filePath = '';
         let fileUrl  = trackData.fileUrl ?? '';
         let gainDb   = 0;
-        let bpm      = trackData.tempo ?? 0;
 
         if (file) {
           const ext  = file.name.split('.').pop();
           filePath   = `${user.id}/${Date.now()}.${ext}`;
 
-          // Run gain + BPM analysis in parallel
-          const [detectedGain, detectedBpm] = await Promise.all([
-            analyzeGain(file).catch(() => 0),
-            analyzeBPM(file).catch(() => 0),
-          ]);
-          gainDb = detectedGain;
-          if (detectedBpm > 0) bpm = detectedBpm;
+          // Analyze loudness
+          gainDb = await analyzeGain(file).catch(() => 0);
 
           const { error: uploadError } = await supabase.storage.from('audio').upload(filePath, file, { contentType: file.type });
           if (uploadError) { get().addToast('File upload failed: ' + uploadError.message, 'error'); return; }
@@ -406,7 +399,7 @@ export const useStore = create<StoreState>()(
           duration: trackData.duration, file_url: fileUrl, file_path: filePath,
           isrc_code: trackData.isrcCode ?? '', writers: trackData.writers ?? [],
           genre: trackData.genre ?? '', tags: trackData.tags ?? [],
-          mood: trackData.mood ?? '', tempo: bpm,
+          mood: trackData.mood ?? '', tempo: trackData.tempo ?? 0,
           gain_db: gainDb,
           file_size: file?.size ?? 0,
         }).select().single();
@@ -415,7 +408,7 @@ export const useStore = create<StoreState>()(
           const newTrack = rowToTrack(data);
           newTrack.fileUrl = fileUrl;
           set((state) => ({ tracks: [newTrack, ...state.tracks] }));
-          if (bpm > 0) get().addToast(`Uploaded · ${bpm} BPM detected`, 'success');
+          get().addToast('Track uploaded successfully', 'success');
         } else {
           get().addToast('Failed to save track: ' + error?.message, 'error');
         }

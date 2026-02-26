@@ -294,12 +294,6 @@ export default function LibraryPanel({ onClose }: Props) {
                       </div>
 
                       {track.genre && <span className="tag-pill text-xs hidden sm:inline-flex">{track.genre}</span>}
-                      {track.tempo && track.tempo > 0 && (
-                        <span className="text-xs hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full flex-shrink-0"
-                          style={{ background: 'rgba(255,255,255,0.05)', color: '#555' }}>
-                          {track.tempo} BPM
-                        </span>
-                      )}
                       {!track.fileUrl && <span className="text-yellow-500/70 text-xs flex-shrink-0">No file</span>}
 
                       <div className="flex items-center gap-1 text-[#666] text-xs w-12 text-right flex-shrink-0">
