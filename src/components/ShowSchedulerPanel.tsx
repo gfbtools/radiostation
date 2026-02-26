@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Plus, Trash2, Clock, ListMusic, CalendarDays, Radio } from 'lucide-react';
 import { useStore } from '@/store/useStore';
-import type { Show } from '@/types';
+
 
 interface Props {
   onClose: () => void;
