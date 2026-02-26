@@ -70,7 +70,7 @@ export default function PlayerBar() {
     if (!player.currentTrack) return;
     const url = player.currentTrack.fileUrl;
     if (url) {
-      audioEngine.load(url);
+      audioEngine.load(url, player.currentTrack.gainDb ?? 0);
       if (player.isPlaying) {
         audioEngine.play().catch(() => useStore.getState().pause());
       }

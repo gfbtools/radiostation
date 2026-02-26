@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '@/lib/supabase';
+import { analyzeGain } from '@/lib/analyzeGain';
 import type {
   User,
   Track,
@@ -133,6 +134,7 @@ function rowToTrack(row: Record<string, unknown>): Track {
     tags: (row.tags as string[]) || [],
     mood: (row.mood as string) || '',
     tempo: (row.tempo as number) || 0,
+    gainDb: (row.gain_db as number) ?? 0,
     uploadDate: new Date(row.upload_date as string),
     updatedAt: new Date(row.updated_at as string),
   };
@@ -363,9 +365,13 @@ export const useStore = create<StoreState>()(
         if (!user) return;
         let filePath = '';
         let fileUrl = trackData.fileUrl ?? '';
+        let gainDb = 0;
+
         if (file) {
           const ext = file.name.split('.').pop();
           filePath = `${user.id}/${Date.now()}.${ext}`;
+          // Analyze loudness before upload
+          try { gainDb = await analyzeGain(file); } catch (_) { gainDb = 0; }
           const { error: uploadError } = await supabase.storage.from('audio').upload(filePath, file, { contentType: file.type });
           if (uploadError) { get().addToast('File upload failed: ' + uploadError.message, 'error'); return; }
           const { data: urlData } = await supabase.storage.from('audio').createSignedUrl(filePath, 3600);
@@ -377,6 +383,7 @@ export const useStore = create<StoreState>()(
           isrc_code: trackData.isrcCode ?? '', writers: trackData.writers ?? [],
           genre: trackData.genre ?? '', tags: trackData.tags ?? [],
           mood: trackData.mood ?? '', tempo: trackData.tempo ?? 0,
+          gain_db: gainDb,
         }).select().single();
         if (!error && data) {
           const newTrack = rowToTrack(data);

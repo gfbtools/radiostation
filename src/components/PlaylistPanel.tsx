@@ -36,7 +36,7 @@ export default function PlaylistPanel({ onClose }: Props) {
       const firstWithFile = pl.tracks.find((t) => t.fileUrl);
       if (!firstWithFile) { addToast('No tracks have audio files yet — upload some first', 'error'); return; }
       const idx = pl.tracks.indexOf(firstWithFile);
-      audioEngine.load(firstWithFile.fileUrl);
+      audioEngine.load(firstWithFile.fileUrl, firstWithFile.gainDb ?? 0);
       playPlaylist(pl, idx);
     }
   };

@@ -50,7 +50,7 @@ export default function LibraryPanel({ onClose }: Props) {
       togglePlay();
     } else {
       if (!track.fileUrl) { addToast('No audio file — upload one first', 'error'); return; }
-      audioEngine.load(track.fileUrl);
+      audioEngine.load(track.fileUrl, track.gainDb ?? 0);
       playTrack(track);
     }
   };

@@ -46,6 +46,7 @@ export interface Track {
   tags: string[];
   mood?: string;
   tempo?: number;
+  gainDb?: number;   // normalization gain — applied at playback to hit -14 LUFS
   uploadDate: Date;
   updatedAt: Date;
 }
