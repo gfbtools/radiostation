@@ -151,7 +151,7 @@ export default function TrackUploadModal({ onClose }: Props) {
             <input
               ref={fileInputRef}
               type="file"
-              accept="audio/*,.mp3,.wav,.flac,.aac,.m4a,.ogg,.aiff,.aif,.opus"
+              accept=".mp3,.wav,.flac,.aac,.m4a,.ogg,.aiff,.aif,.opus"
               className="hidden"
               onChange={(e) => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }}
             />
