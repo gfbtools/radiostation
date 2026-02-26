@@ -183,6 +183,40 @@ export interface PublicStation {
   trackCount: number;
 }
 
+// ── DJ Drops ──────────────────────────────────────────────────────────────
+
+export interface Drop {
+  id: string;
+  userId: string;
+  title: string;
+  fileUrl: string;
+  filePath: string;
+  duration: number;
+  fileSize: number;
+  createdAt: string;
+}
+
+export interface DropConfig {
+  enabled: boolean;
+  interval: number;               // play a drop every N tracks
+  order: 'sequential' | 'random';
+}
+
+// ── Show Scheduling ───────────────────────────────────────────────────────
+
+export interface Show {
+  id: string;
+  userId: string;
+  name: string;
+  playlistId: string;
+  dayOfWeek: number;              // 0 = Sun … 6 = Sat
+  startTime: string;              // 'HH:MM' 24h
+  durationMinutes: number;
+  repeat: boolean;
+  isActive: boolean;
+  createdAt: string;
+}
+
 export interface AppState {
   auth: AuthState;
   player: PlayerState;

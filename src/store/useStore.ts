@@ -11,6 +11,9 @@ import type {
   TrackFilters,
   Toast,
   SavedStation,
+  Drop,
+  DropConfig,
+  Show,
 } from '@/types';
 import { STORAGE_QUOTA_FREE_BYTES } from '@/types';
 
@@ -90,6 +93,18 @@ interface StoreState {
   setPlaylistPanelOpen: (open: boolean) => void;
   reportsPanelOpen: boolean;
   setReportsPanelOpen: (open: boolean) => void;
+  // ── DJ Drops ────────────────────────────────────────────────────────────
+  drops: Drop[];
+  dropConfig: DropConfig;
+  fetchDrops: () => Promise<void>;
+  addDrop: (file: File, title: string) => Promise<void>;
+  deleteDrop: (id: string) => Promise<void>;
+  updateDropConfig: (config: Partial<DropConfig>) => Promise<void>;
+  // ── Show Scheduling ──────────────────────────────────────────────────────
+  shows: Show[];
+  fetchShows: () => Promise<void>;
+  addShow: (show: Omit<Show, 'id' | 'userId' | 'createdAt'>) => Promise<void>;
+  deleteShow: (id: string) => Promise<void>;
   // Discover
   savedStations: SavedStation[];
   fetchSavedStations: () => Promise<void>;
@@ -612,6 +627,140 @@ export const useStore = create<StoreState>()(
       setPlaylistPanelOpen: (open) => set({ playlistPanelOpen: open }),
       reportsPanelOpen: false,
       setReportsPanelOpen: (open) => set({ reportsPanelOpen: open }),
+
+      // ── DJ Drops ────────────────────────────────────────────────────────
+      drops: [],
+      dropConfig: { enabled: false, interval: 3, order: 'sequential' },
+
+      fetchDrops: async () => {
+        const { user } = get();
+        if (!user) return;
+        const { data, error } = await supabase.from('drops').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+        if (!error && data) {
+          const drops: Drop[] = await Promise.all(data.map(async (row) => {
+            let fileUrl = row.file_url as string;
+            if (row.file_path) {
+              const { data: urlData } = await supabase.storage.from('drops').createSignedUrl(row.file_path as string, 3600);
+              fileUrl = urlData?.signedUrl ?? fileUrl;
+            }
+            return {
+              id: row.id as string,
+              userId: row.user_id as string,
+              title: row.title as string,
+              fileUrl,
+              filePath: row.file_path as string,
+              duration: (row.duration as number) || 0,
+              fileSize: (row.file_size as number) || 0,
+              createdAt: row.created_at as string,
+            };
+          }));
+          set({ drops });
+        }
+        // Also load drop config from profile
+        const { data: profile } = await supabase.from('profiles').select('drop_config').eq('id', user.id).single();
+        if (profile?.drop_config) {
+          try { set({ dropConfig: JSON.parse(profile.drop_config as string) }); } catch { /* ignore */ }
+        }
+      },
+
+      addDrop: async (file, title) => {
+        const { user } = get();
+        if (!user) return;
+        const ext = file.name.split('.').pop();
+        const filePath = `${user.id}/${Date.now()}.${ext}`;
+        const { error: uploadError } = await supabase.storage.from('drops').upload(filePath, file, { contentType: file.type });
+        if (uploadError) { get().addToast('Drop upload failed: ' + uploadError.message, 'error'); return; }
+        const { data: urlData } = await supabase.storage.from('drops').createSignedUrl(filePath, 3600);
+        const fileUrl = urlData?.signedUrl ?? '';
+        // Measure duration
+        let duration = 0;
+        try {
+          const buf = await file.arrayBuffer();
+          const ctx = new AudioContext();
+          const decoded = await ctx.decodeAudioData(buf);
+          duration = decoded.duration;
+          ctx.close();
+        } catch { /* ignore */ }
+        const { data, error } = await supabase.from('drops').insert({
+          user_id: user.id, title, file_path: filePath, file_url: fileUrl,
+          duration: Math.round(duration), file_size: file.size,
+        }).select().single();
+        if (!error && data) {
+          const drop: Drop = { id: data.id, userId: data.user_id, title: data.title, fileUrl, filePath, duration: data.duration || 0, fileSize: data.file_size || 0, createdAt: data.created_at };
+          set((s) => ({ drops: [drop, ...s.drops] }));
+          get().addToast(`"${title}" uploaded`, 'success');
+        }
+      },
+
+      deleteDrop: async (id) => {
+        const { drops } = get();
+        const drop = drops.find((d) => d.id === id);
+        if (drop?.filePath) await supabase.storage.from('drops').remove([drop.filePath]);
+        await supabase.from('drops').delete().eq('id', id);
+        set((s) => ({ drops: s.drops.filter((d) => d.id !== id) }));
+        get().addToast('Drop deleted', 'success');
+      },
+
+      updateDropConfig: async (config) => {
+        const { user, dropConfig } = get();
+        const updated = { ...dropConfig, ...config };
+        set({ dropConfig: updated });
+        if (user) {
+          await supabase.from('profiles').update({ drop_config: JSON.stringify(updated) } as Record<string, unknown>).eq('id', user.id);
+        }
+      },
+
+      // ── Show Scheduling ──────────────────────────────────────────────────
+      shows: [],
+
+      fetchShows: async () => {
+        const { user } = get();
+        if (!user) return;
+        const { data, error } = await supabase.from('shows').select('*').eq('user_id', user.id).order('day_of_week').order('start_time');
+        if (!error && data) {
+          const shows: Show[] = data.map((row) => ({
+            id: row.id as string,
+            userId: row.user_id as string,
+            name: row.name as string,
+            playlistId: row.playlist_id as string,
+            dayOfWeek: row.day_of_week as number,
+            startTime: row.start_time as string,
+            durationMinutes: row.duration_minutes as number,
+            repeat: row.repeat as boolean,
+            isActive: row.is_active as boolean,
+            createdAt: row.created_at as string,
+          }));
+          set({ shows });
+        }
+      },
+
+      addShow: async (show) => {
+        const { user } = get();
+        if (!user) return;
+        const { data, error } = await supabase.from('shows').insert({
+          user_id: user.id,
+          name: show.name,
+          playlist_id: show.playlistId,
+          day_of_week: show.dayOfWeek,
+          start_time: show.startTime,
+          duration_minutes: show.durationMinutes,
+          repeat: show.repeat,
+          is_active: show.isActive,
+        }).select().single();
+        if (!error && data) {
+          const newShow: Show = { id: data.id, userId: data.user_id, name: data.name, playlistId: data.playlist_id, dayOfWeek: data.day_of_week, startTime: data.start_time, durationMinutes: data.duration_minutes, repeat: data.repeat, isActive: data.is_active, createdAt: data.created_at };
+          set((s) => ({ shows: [...s.shows, newShow].sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.startTime.localeCompare(b.startTime)) }));
+          get().addToast(`"${show.name}" scheduled`, 'success');
+        } else {
+          get().addToast('Failed to save show: ' + error?.message, 'error');
+        }
+      },
+
+      deleteShow: async (id) => {
+        await supabase.from('shows').delete().eq('id', id);
+        set((s) => ({ shows: s.shows.filter((sh) => sh.id !== id) }));
+        get().addToast('Show removed', 'success');
+      },
 
       // ── Discover / Saved Stations ──
       savedStations: [],
