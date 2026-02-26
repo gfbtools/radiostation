@@ -46,9 +46,7 @@ function formatDuration(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-}
+
 
 // ── Component ─────────────────────────────────────────────────────────────
 export default function ArtistProfile() {
