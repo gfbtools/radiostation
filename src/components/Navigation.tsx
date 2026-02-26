@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Music, ListMusic, BarChart3, Settings, Menu, X, UserCircle, LogOut, Radio } from 'lucide-react';
+import { Music, ListMusic, BarChart3, Settings, Menu, X, UserCircle, LogOut, Radio, Users } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import ProfileSettingsModal from '@/components/ProfileSettingsModal';
 import MyStationPanel from '@/components/MyStationPanel';
+import DiscoverPanel from '@/components/DiscoverPanel';
 import OnAirPanel from '@/components/OnAirPanel';
 
 const navItems = [
@@ -25,6 +26,7 @@ export default function Navigation() {
   const [profileOpen, setProfileOpen]     = useState(false);
   const [onAirOpen, setOnAirOpen]         = useState(false);
   const [userMenuOpen, setUserMenuOpen]   = useState(false);
+  const [discoverOpen, setDiscoverOpen]   = useState(false);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 100);
@@ -61,6 +63,11 @@ export default function Navigation() {
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ml-1"
               style={{ background: 'rgba(201,255,59,0.12)', color: '#C9FF3B', border: '1px solid rgba(201,255,59,0.2)' }}>
               <Radio size={15} /> My Station
+            </button>
+            <button onClick={() => setDiscoverOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ml-1"
+              style={{ background: 'rgba(255,255,255,0.06)', color: '#B8B8B8', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <Users size={15} /> Discover
             </button>
           </div>
 
@@ -152,9 +159,10 @@ export default function Navigation() {
         </>
       )}
 
-      {profileOpen && <ProfileSettingsModal onClose={() => setProfileOpen(false)} />}
-      {stationPanelOpen && <MyStationPanel      onClose={() => setStationPanelOpen(false)} />}
-      {onAirOpen    && <OnAirPanel          onClose={() => setOnAirOpen(false)} />}
+      {profileOpen      && <ProfileSettingsModal onClose={() => setProfileOpen(false)} />}
+      {stationPanelOpen && <MyStationPanel       onClose={() => setStationPanelOpen(false)} />}
+      {onAirOpen        && <OnAirPanel           onClose={() => setOnAirOpen(false)} />}
+      {discoverOpen     && <DiscoverPanel        onClose={() => setDiscoverOpen(false)} />}
     </>
   );
 }

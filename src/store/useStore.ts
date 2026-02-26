@@ -9,6 +9,7 @@ import type {
   PlayerState,
   TrackFilters,
   Toast,
+  SavedStation,
 } from '@/types';
 
 // Resolve a stored logo path (or already-signed URL) to a fresh signed URL
@@ -87,6 +88,11 @@ interface StoreState {
   setPlaylistPanelOpen: (open: boolean) => void;
   reportsPanelOpen: boolean;
   setReportsPanelOpen: (open: boolean) => void;
+  // Discover
+  savedStations: SavedStation[];
+  fetchSavedStations: () => Promise<void>;
+  saveStation: (station: SavedStation) => Promise<void>;
+  removeSavedStation: (userId: string) => Promise<void>;
 }
 
 const initialPlayerState: PlayerState = {
@@ -577,6 +583,33 @@ export const useStore = create<StoreState>()(
       setPlaylistPanelOpen: (open) => set({ playlistPanelOpen: open }),
       reportsPanelOpen: false,
       setReportsPanelOpen: (open) => set({ reportsPanelOpen: open }),
+
+      // ── Discover / Saved Stations ──
+      savedStations: [],
+      fetchSavedStations: async () => {
+        const { user } = get();
+        if (!user) return;
+        const { data } = await supabase.from('saved_stations').select('*').eq('user_id', user.id).order('saved_at', { ascending: false });
+        if (data) set({ savedStations: data as SavedStation[] });
+      },
+      saveStation: async (station) => {
+        const { user, savedStations } = get();
+        if (!user) return;
+        const { error } = await supabase.from('saved_stations').upsert({
+          user_id: user.id,
+          station_user_id: station.stationUserId,
+          name: station.name,
+          logo_url: station.logoUrl ?? null,
+          saved_at: new Date().toISOString(),
+        });
+        if (!error) set({ savedStations: [station, ...savedStations.filter(s => s.stationUserId !== station.stationUserId)] });
+      },
+      removeSavedStation: async (stationUserId) => {
+        const { user } = get();
+        if (!user) return;
+        await supabase.from('saved_stations').delete().eq('user_id', user.id).eq('station_user_id', stationUserId);
+        set((s) => ({ savedStations: s.savedStations.filter(x => x.stationUserId !== stationUserId) }));
+      },
     }),
     {
       name: 'radio-station-storage',

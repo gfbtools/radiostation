@@ -163,6 +163,20 @@ export interface TrackFilters {
   sortOrder: 'asc' | 'desc';
 }
 
+export interface SavedStation {
+  stationUserId: string;
+  name: string;
+  logoUrl?: string | null;
+  savedAt?: string;
+}
+
+export interface PublicStation {
+  id: string;
+  name: string;
+  logoUrl?: string | null;
+  trackCount: number;
+}
+
 export interface AppState {
   auth: AuthState;
   player: PlayerState;
