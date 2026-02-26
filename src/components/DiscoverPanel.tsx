@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Radio, Bookmark, BookmarkCheck, ExternalLink, Search, Users, Music } from 'lucide-react';
+import { X, Radio, Bookmark, BookmarkCheck, ExternalLink, Search, Users, Music, UserCircle } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { supabase } from '@/lib/supabase';
 import type { PublicStation, SavedStation } from '@/types';
@@ -118,6 +118,13 @@ export default function DiscoverPanel({ onClose }: Props) {
 
       {/* Actions */}
       <div className="flex items-center gap-2 flex-shrink-0">
+        <button
+          onClick={() => window.open(`./artist.html?userId=${id}`, '_blank')}
+          className="p-2 rounded-xl transition-all text-[#666] hover:text-[#B8B8B8] hover:bg-white/5"
+          title="View artist profile"
+        >
+          <UserCircle size={16} />
+        </button>
         <button
           onClick={() => handleSave({ id, name, logoUrl: logoUrl ?? null, trackCount: trackCount ?? 0 })}
           className="p-2 rounded-xl transition-all"
