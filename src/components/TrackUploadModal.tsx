@@ -36,8 +36,12 @@ export default function TrackUploadModal({ onClose }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback((f: File) => {
-    if (!f.type.startsWith('audio/')) {
-      addToast('Please upload an audio file (MP3, WAV, FLAC, etc.)', 'error');
+    // iOS sometimes returns empty type for audio files — check extension too
+    const ext = f.name.split('.').pop()?.toLowerCase() ?? '';
+    const validExts = ['mp3','wav','flac','aac','m4a','ogg','aiff','aif','wma','opus'];
+    const isAudio = f.type.startsWith('audio/') || validExts.includes(ext);
+    if (!isAudio) {
+      addToast('Please upload an audio file (MP3, WAV, FLAC, AAC, M4A, etc.)', 'error');
       return;
     }
     setFile(f);
@@ -134,11 +138,20 @@ export default function TrackUploadModal({ onClose }: Props) {
           >
             <Upload size={40} className="mx-auto mb-4" style={{ color: dragging ? '#C9FF3B' : '#666' }} />
             <p className="text-[#F2F2F2] font-medium mb-1">Drop your audio file here</p>
-            <p className="text-[#666] text-sm">or click to browse — MP3, WAV, FLAC, AAC supported</p>
+            <p className="text-[#666] text-sm hidden md:block">or click to browse — MP3, WAV, FLAC, AAC, M4A supported</p>
+            <p className="text-[#666] text-sm md:hidden">MP3, WAV, FLAC, AAC, M4A supported</p>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+              className="mt-4 px-5 py-2 rounded-xl text-sm font-medium md:hidden"
+              style={{ background: 'rgba(201,255,59,0.12)', color: '#C9FF3B', border: '1px solid rgba(201,255,59,0.25)' }}
+            >
+              Tap to Select File
+            </button>
             <input
               ref={fileInputRef}
               type="file"
-              accept="audio/*"
+              accept="audio/*,.mp3,.wav,.flac,.aac,.m4a,.ogg,.aiff,.aif,.opus"
               className="hidden"
               onChange={(e) => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }}
             />

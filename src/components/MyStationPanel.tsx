@@ -48,12 +48,36 @@ export default function MyStationPanel({ onClose }: Props) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) { addToast('Please select an image file', 'error'); return; }
-    if (file.size > 2 * 1024 * 1024) { addToast('Image must be under 2MB', 'error'); return; }
+
+    // Compress image client-side before upload — handles large phone photos
+    const compressImage = (f: File): Promise<File> => new Promise((resolve) => {
+      const img = new window.Image();
+      const url = URL.createObjectURL(f);
+      img.onload = () => {
+        const MAX = 800;
+        let { width, height } = img;
+        if (width > MAX || height > MAX) {
+          if (width > height) { height = Math.round(height * MAX / width); width = MAX; }
+          else { width = Math.round(width * MAX / height); height = MAX; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+          URL.revokeObjectURL(url);
+          resolve(blob ? new File([blob], 'logo.jpg', { type: 'image/jpeg' }) : f);
+        }, 'image/jpeg', 0.85);
+      };
+      img.src = url;
+    });
+
     const reader = new FileReader();
     reader.onload = (ev) => setLogoPreview(ev.target?.result as string);
     reader.readAsDataURL(file);
+
     setLogoUploading(true);
-    const url = await uploadLogo(file);
+    const compressed = await compressImage(file);
+    const url = await uploadLogo(compressed);
     setLogoUploading(false);
     if (url) { setLogoPreview(url); addToast('Logo updated! Widget will show your logo.', 'success'); }
   };
@@ -133,7 +157,7 @@ export default function MyStationPanel({ onClose }: Props) {
                   <Upload size={12} />
                   {logoUploading ? 'Uploading…' : logoPreview ? 'Change Logo' : 'Upload Logo'}
                 </button>
-                <p className="text-[#444] text-[10px] text-center">JPG, PNG or WebP · max 2MB</p>
+                <p className="text-[#444] text-[10px] text-center">JPG, PNG or WebP · auto-compressed</p>
               </div>
             </div>
 
