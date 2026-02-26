@@ -48,11 +48,21 @@ export default function Reporting() {
       <div className="relative z-10 w-full px-[6vw] flex justify-between items-center">
         <div ref={headlineRef} className="max-w-[44vw]">
           <h2 className="text-[clamp(34px,3.6vw,56px)] text-[#F2F2F2] mb-6">ASCAP REPORTING</h2>
-          <p className="text-[16px] text-[#B8B8B8] leading-relaxed mb-8 max-w-[38vw]">
+          <p className="text-[16px] text-[#B8B8B8] leading-relaxed mb-4 max-w-[38vw]">
             Every play is logged with timestamp, duration, and percentage played. Generate quarterly exports in seconds—clean data for your PRO.
+          </p>
+          <p className="text-[13px] max-w-[36vw] leading-relaxed mb-8" style={{ color: '#555' }}>
+            Reports track every stream so you can submit accurate play data to ASCAP, BMI, or SESAC for royalty collection. Export as CSV at the end of each quarter.
           </p>
           <button className="btn-primary flex items-center gap-2" onClick={() => setReportsPanelOpen(true)}>
             <BarChart3 size={18} /> View Reports
+          </button>
+          <button
+            className="flex items-center gap-1 text-sm mt-3"
+            style={{ color: '#666', background: 'none', border: 'none', cursor: 'pointer' }}
+            onClick={() => document.getElementById('onair')?.scrollIntoView({ behavior: 'smooth' })}
+          >
+            ← On Air
           </button>
         </div>
         <div ref={reportCardRef} className="w-[40vw] max-w-[480px] glass-card p-8">

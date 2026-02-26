@@ -48,6 +48,22 @@ export default function PlaylistSection() {
           <button className="btn-primary flex items-center gap-2" onClick={() => setPlaylistPanelOpen(true)}>
             <ListMusic size={18} /> Create a Setlist
           </button>
+          <div className="flex gap-4 mt-3">
+            <button
+              className="flex items-center gap-1 text-sm"
+              style={{ color: '#666', background: 'none', border: 'none', cursor: 'pointer' }}
+              onClick={() => document.getElementById('library')?.scrollIntoView({ behavior: 'smooth' })}
+            >
+              ← Library
+            </button>
+            <button
+              className="flex items-center gap-1 text-sm"
+              style={{ color: '#C9FF3B', background: 'none', border: 'none', cursor: 'pointer' }}
+              onClick={() => document.getElementById('onair')?.scrollIntoView({ behavior: 'smooth' })}
+            >
+              Next: On Air →
+            </button>
+          </div>
         </div>
         <div ref={playlistCardRef} className="w-[40vw] max-w-[520px] glass-card overflow-hidden" style={{ maxHeight: '64vh' }}>
           <div className="p-6 border-b border-white/10">

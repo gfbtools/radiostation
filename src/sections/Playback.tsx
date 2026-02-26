@@ -5,10 +5,15 @@ import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle } from 'lu
 
 import { useStore } from '@/store/useStore';
 
+import { useStore } from '@/store/useStore';
+import OnAirPanel from '@/components/OnAirPanel';
+import { useState } from 'react';
+
 gsap.registerPlugin(ScrollTrigger);
 
 export default function Playback() {
   const { setStationPanelOpen } = useStore();
+  const [onAirOpen, setOnAirOpen] = useState(false);
   const sectionRef    = useRef<HTMLElement>(null);
   const headlineRef   = useRef<HTMLDivElement>(null);
   const nowPlayingRef = useRef<HTMLDivElement>(null);
@@ -27,16 +32,33 @@ export default function Playback() {
   }, []);
 
   return (
-    <section ref={sectionRef} className="section-pinned flex items-center z-40" style={{ backgroundColor: '#0B0B0D' }}>
+    <section ref={sectionRef} id="onair" className="section-pinned flex items-center z-40" style={{ backgroundColor: '#0B0B0D' }}>
       <div ref={bgRef} className="absolute inset-0 w-full h-full" style={{ backgroundImage: 'url(/playback_bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.65 }} />
       <div className="absolute inset-0 gradient-left" />
       <div className="relative z-10 w-full px-[6vw] flex justify-between items-center">
         <div ref={headlineRef} className="max-w-[44vw]">
-          <h2 className="text-[clamp(34px,3.6vw,56px)] text-[#F2F2F2] mb-6">CONTINUOUS PLAYBACK</h2>
+          <h2 className="text-[clamp(34px,3.6vw,56px)] text-[#F2F2F2] mb-6">ON AIR</h2>
           <p className="text-[16px] text-[#B8B8B8] leading-relaxed mb-8 max-w-[38vw]">
-            Gapless transitions. Background playback. Loop a single track, the whole list, or let it stop when the set ends—you're in control.
+            Select which tracks and playlists broadcast on your station. Go live instantly — your listeners only hear what you put on air.
           </p>
-          <button className="btn-primary flex items-center gap-2" onClick={() => setStationPanelOpen(true)}><Play size={18} /> Start Listening</button>
+          <button className="btn-primary flex items-center gap-2" onClick={() => setOnAirOpen(true)}><Play size={18} /> Open On Air</button>
+          <div className="flex gap-4 mt-3">
+            <button
+              className="flex items-center gap-1 text-sm"
+              style={{ color: '#666', background: 'none', border: 'none', cursor: 'pointer' }}
+              onClick={() => document.getElementById('playlists')?.scrollIntoView({ behavior: 'smooth' })}
+            >
+              ← Playlists
+            </button>
+            <button
+              className="flex items-center gap-1 text-sm"
+              style={{ color: '#C9FF3B', background: 'none', border: 'none', cursor: 'pointer' }}
+              onClick={() => setStationPanelOpen(true)}
+            >
+              Next: My Station →
+            </button>
+          </div>
+          {onAirOpen && <OnAirPanel onClose={() => setOnAirOpen(false)} />}
         </div>
         <div ref={nowPlayingRef} className="w-[40vw] max-w-[480px] glass-card p-8">
           <div className="flex items-center justify-between mb-6">

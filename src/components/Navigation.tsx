@@ -8,6 +8,7 @@ import OnAirPanel from '@/components/OnAirPanel';
 const navItems = [
   { label: 'Library',   icon: Music,     target: 'library' },
   { label: 'Playlists', icon: ListMusic, target: 'playlists' },
+  { label: 'On Air',    icon: Radio,     target: 'onair' },
   { label: 'Reports',   icon: BarChart3, target: 'reports' },
 ];
 

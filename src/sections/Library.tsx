@@ -46,6 +46,13 @@ export default function Library() {
           <button className="btn-primary flex items-center gap-2" onClick={() => setLibraryPanelOpen(true)}>
             <FolderOpen size={18} /> Open Library
           </button>
+          <button
+            className="flex items-center gap-2 text-sm mt-3"
+            style={{ color: '#C9FF3B', background: 'none', border: 'none', cursor: 'pointer' }}
+            onClick={() => document.getElementById('playlists')?.scrollIntoView({ behavior: 'smooth' })}
+          >
+            Next: Playlists →
+          </button>
         </div>
         <div ref={cardStackRef} className="relative w-[42vw] h-[68vh] max-w-[600px]">
           <div className="absolute top-4 right-4 w-full h-full glass-card p-6" style={{ transform: 'rotate(2deg) scale(0.98)' }}>
