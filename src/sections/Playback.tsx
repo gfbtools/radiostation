@@ -1,13 +1,9 @@
-import { useRef, useLayoutEffect } from 'react';
+import { useRef, useLayoutEffect, useState } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle } from 'lucide-react';
-
-import { useStore } from '@/store/useStore';
-
 import { useStore } from '@/store/useStore';
 import OnAirPanel from '@/components/OnAirPanel';
-import { useState } from 'react';
 
 gsap.registerPlugin(ScrollTrigger);
 
