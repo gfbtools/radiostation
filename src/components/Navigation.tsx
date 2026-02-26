@@ -26,8 +26,8 @@ export default function Navigation() {
   const isLive = onAirMode === 'all' || onAirTrackIds.length > 0;
   const [isScrolled, setIsScrolled]       = useState(false);
   const [isMobileMenuOpen, setMobileMenu] = useState(false);
-  const [profileOpen, setProfileOpen]     = useState(false);
-  const [onAirOpen, setOnAirOpen]         = useState(false);
+  const [profileOpen, setProfileOpen]             = useState(false);
+  const [onAirOpen, setOnAirOpen]                 = useState(false);
   const [userMenuOpen, setUserMenuOpen]   = useState(false);
   const [discoverOpen, setDiscoverOpen]   = useState(false);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
@@ -197,7 +197,7 @@ export default function Navigation() {
         </>
       )}
 
-      {profileOpen      && <ProfileSettingsModal onClose={() => setProfileOpen(false)} />}
+      {profileOpen        && <ProfileSettingsModal onClose={() => setProfileOpen(false)} />}
       {stationPanelOpen && <MyStationPanel       onClose={() => setStationPanelOpen(false)} />}
       {onAirOpen        && <OnAirPanel           onClose={() => setOnAirOpen(false)} />}
       {discoverOpen     && <DiscoverPanel        onClose={() => setDiscoverOpen(false)} />}

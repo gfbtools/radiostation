@@ -1,37 +1,32 @@
 import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Copy, Check, Radio, ExternalLink, Code2, Smartphone, Globe, Share2, Image, Upload, UserCircle } from 'lucide-react';
+import { X, Copy, Check, Radio, ExternalLink, Code2, Smartphone, Globe, Share2, Image, Upload } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 
-interface Props {
-  onClose: () => void;
-}
+interface Props { onClose: () => void; }
 
 const WIDGET_BASE = 'https://radio-station-widget.pages.dev';
 
 export default function MyStationPanel({ onClose }: Props) {
   const { user, uploadLogo, addToast } = useStore();
-  const [copiedLink, setCopiedLink]       = useState(false);
-  const [copiedEmbed, setCopiedEmbed]     = useState(false);
-  const [copiedProfile, setCopiedProfile] = useState(false);
+  const [copiedLink, setCopiedLink]   = useState(false);
+  const [copiedEmbed, setCopiedEmbed] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoPreview, setLogoPreview]     = useState<string>(user?.logoUrl ?? '');
   const [theme, setTheme]                 = useState('dark');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const themes = [
-    { id: 'dark',     label: 'Dark',     color: '#C9FF3B', bg: '#0B0B0D' },
-    { id: 'green',    label: 'Forest',   color: '#00FF87', bg: '#060F06' },
-    { id: 'purple',   label: 'Violet',   color: '#A78BFA', bg: '#0A080F' },
-    { id: 'warm',     label: 'Amber',    color: '#FF9A3C', bg: '#100A06' },
-    { id: 'midnight', label: 'Midnight', color: '#5B9BFF', bg: '#070B14' },
+    { id: 'dark',     label: 'Dark',     color: '#C9FF3B' },
+    { id: 'green',    label: 'Forest',   color: '#00FF87' },
+    { id: 'purple',   label: 'Violet',   color: '#A78BFA' },
+    { id: 'warm',     label: 'Amber',    color: '#FF9A3C' },
+    { id: 'midnight', label: 'Midnight', color: '#5B9BFF' },
   ];
 
   const stationUrl = theme === 'dark'
     ? `${WIDGET_BASE}/?userId=${user?.id}`
     : `${WIDGET_BASE}/?userId=${user?.id}&theme=${theme}`;
-
-  const profileUrl = `${window.location.origin}/artist.html?userId=${user?.id}`;
 
   const embedCode = `<iframe\n  src="${stationUrl}"\n  width="380"\n  height="520"\n  frameborder="0"\n  allow="autoplay"\n  style="border-radius:16px;"\n></iframe>`;
 
@@ -46,13 +41,6 @@ export default function MyStationPanel({ onClose }: Props) {
     setCopiedEmbed(true);
     addToast('Embed code copied!', 'success');
     setTimeout(() => setCopiedEmbed(false), 2000);
-  };
-
-  const copyProfileLink = async () => {
-    await navigator.clipboard.writeText(profileUrl);
-    setCopiedProfile(true);
-    addToast('Profile link copied!', 'success');
-    setTimeout(() => setCopiedProfile(false), 2000);
   };
 
   const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -114,7 +102,7 @@ export default function MyStationPanel({ onClose }: Props) {
             </div>
             <div>
               <h2 className="text-[#F2F2F2] text-xl font-semibold">My Station</h2>
-              <p className="text-[#666] text-xs mt-0.5">Deploy your public radio station — no code required</p>
+              <p className="text-[#666] text-xs mt-0.5">Your embeddable public radio player</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/5 transition-colors">
@@ -139,44 +127,7 @@ export default function MyStationPanel({ onClose }: Props) {
             </button>
           </div>
 
-          {/* ── Artist Profile Page ── */}
-          <div className="p-5 rounded-2xl space-y-3" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <div className="flex items-center gap-2">
-              <UserCircle size={14} className="text-[#C9FF3B]" />
-              <span className="text-[#B8B8B8] text-xs uppercase tracking-wide">Your Artist Profile Page</span>
-            </div>
-            <p className="text-[#555] text-xs leading-relaxed">
-              A shareable public page with your bio, tracks, social links, and embedded station. Give this link to fans, labels, or bookers.
-            </p>
-            <div className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <p className="text-[#555] text-xs font-mono truncate">{profileUrl}</p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={copyProfileLink}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all"
-                style={{
-                  background: copiedProfile ? 'rgba(201,255,59,0.15)' : '#C9FF3B',
-                  color: copiedProfile ? '#C9FF3B' : '#0B0B0D',
-                  border: copiedProfile ? '1px solid rgba(201,255,59,0.3)' : 'none',
-                }}
-              >
-                {copiedProfile ? <><Check size={14} /> Copied!</> : <><Copy size={14} /> Copy Profile Link</>}
-              </button>
-              <button
-                onClick={() => window.open(profileUrl, '_blank')}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm transition-all"
-                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#B8B8B8' }}
-              >
-                <ExternalLink size={14} /> Preview
-              </button>
-            </div>
-            <p className="text-[#444] text-xs">
-              ✏️ To fill out your bio and social links: tap <strong className="text-[#666]">PRO Accounts</strong> in the nav → <strong className="text-[#666]">Profile</strong> tab
-            </p>
-          </div>
-
-          {/* ── Logo + Station preview side by side ── */}
+          {/* ── Logo + Widget preview ── */}
           <div className="grid grid-cols-2 gap-4">
             <div className="p-5 rounded-2xl space-y-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
               <div className="flex items-center gap-2 mb-1">
@@ -290,13 +241,13 @@ export default function MyStationPanel({ onClose }: Props) {
             </div>
           </div>
 
-          {/* ── Embed on a website ── */}
+          {/* ── Embed ── */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <Code2 size={14} className="text-[#B8B8B8]" />
               <span className="text-[#B8B8B8] text-xs uppercase tracking-wide">Embed On Your Website</span>
             </div>
-            <p className="text-[#555] text-xs">Copy this code and paste it anywhere — Wix, Squarespace, WordPress, or any HTML page.</p>
+            <p className="text-[#555] text-xs">Paste this code into any website — Wix, Squarespace, WordPress, or raw HTML.</p>
             <div className="relative">
               <pre
                 className="p-4 rounded-xl text-[#B8B8B8] text-xs overflow-x-auto leading-relaxed font-mono"
@@ -310,22 +261,6 @@ export default function MyStationPanel({ onClose }: Props) {
                 {copiedEmbed ? <><Check size={11} /> Copied!</> : <><Copy size={11} /> Copy</>}
               </button>
             </div>
-          </div>
-
-          {/* ── How it works ── */}
-          <div className="p-4 rounded-2xl space-y-3" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <p className="text-[#666] text-xs uppercase tracking-wide">How it works</p>
-            {[
-              ['🎵', 'Upload tracks to your library — they stream live on your station'],
-              ['👤', 'Fill out your Profile (PRO Accounts → Profile tab) — bio, location, social links'],
-              ['🔗', 'Copy your Profile Link and share it anywhere — fans see everything in one place'],
-              ['🎛️', 'Listeners can play, pause, skip and browse your full catalog'],
-            ].map(([icon, text]) => (
-              <div key={text as string} className="flex items-start gap-3">
-                <span className="text-base flex-shrink-0">{icon}</span>
-                <p className="text-[#666] text-xs leading-relaxed">{text}</p>
-              </div>
-            ))}
           </div>
 
         </div>
