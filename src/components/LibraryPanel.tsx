@@ -1,10 +1,11 @@
 import { useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Play, Pause, Trash2, Upload, Music, Search, Clock, GripVertical } from 'lucide-react';
+import { X, Play, Pause, Trash2, Upload, Music, Search, Clock, GripVertical, HardDrive } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { audioEngine } from '@/lib/audioEngine';
 import TrackUploadModal from './TrackUploadModal';
 import type { Track } from '@/types';
+import { STORAGE_QUOTA_FREE_BYTES } from '@/types';
 
 interface Props {
   onClose: () => void;
@@ -174,6 +175,33 @@ export default function LibraryPanel({ onClose }: Props) {
             </div>
           </div>
 
+          {/* Storage meter */}
+          {(() => {
+            const usedBytes  = tracks.reduce((sum, t) => sum + (t.fileSize ?? 0), 0);
+            const usedMB     = usedBytes / 1024 / 1024;
+            const limitMB    = STORAGE_QUOTA_FREE_BYTES / 1024 / 1024;
+            const pct        = Math.min(100, (usedBytes / STORAGE_QUOTA_FREE_BYTES) * 100);
+            const isWarning  = pct > 70;
+            const isCritical = pct > 90;
+            return (
+              <div className="px-8 pb-3 flex-shrink-0">
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-1.5 text-xs" style={{ color: '#555' }}>
+                    <HardDrive size={11} /> Storage
+                  </div>
+                  <span className="text-xs" style={{ color: isCritical ? '#ff5555' : isWarning ? '#ffaa33' : '#555' }}>
+                    {usedMB.toFixed(1)} / {limitMB}MB used
+                  </span>
+                </div>
+                <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                  <div className="h-full rounded-full transition-all duration-500"
+                    style={{ width: `${pct}%`, background: isCritical ? '#ff5555' : isWarning ? '#ffaa33' : '#C9FF3B' }} />
+                </div>
+                {isCritical && <p className="text-xs mt-1" style={{ color: '#ff5555' }}>Storage almost full — delete tracks to free space</p>}
+              </div>
+            );
+          })()}
+
           {/* Search */}
           <div className="px-8 pb-4 flex-shrink-0">
             <div className="relative">
@@ -266,6 +294,12 @@ export default function LibraryPanel({ onClose }: Props) {
                       </div>
 
                       {track.genre && <span className="tag-pill text-xs hidden sm:inline-flex">{track.genre}</span>}
+                      {track.tempo && track.tempo > 0 && (
+                        <span className="text-xs hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full flex-shrink-0"
+                          style={{ background: 'rgba(255,255,255,0.05)', color: '#555' }}>
+                          {track.tempo} BPM
+                        </span>
+                      )}
                       {!track.fileUrl && <span className="text-yellow-500/70 text-xs flex-shrink-0">No file</span>}
 
                       <div className="flex items-center gap-1 text-[#666] text-xs w-12 text-right flex-shrink-0">

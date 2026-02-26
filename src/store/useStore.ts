@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '@/lib/supabase';
 import { analyzeGain } from '@/lib/analyzeGain';
+import { analyzeBPM } from '@/lib/analyzeBPM';
 import type {
   User,
   Track,
@@ -12,6 +13,7 @@ import type {
   Toast,
   SavedStation,
 } from '@/types';
+import { STORAGE_QUOTA_FREE_BYTES } from '@/types';
 
 // Resolve a stored logo path (or already-signed URL) to a fresh signed URL
 async function resolveLogoUrl(logoPath: string): Promise<string> {
@@ -135,6 +137,7 @@ function rowToTrack(row: Record<string, unknown>): Track {
     mood: (row.mood as string) || '',
     tempo: (row.tempo as number) || 0,
     gainDb: (row.gain_db as number) ?? 0,
+    fileSize: (row.file_size as number) ?? 0,
     uploadDate: new Date(row.upload_date as string),
     updatedAt: new Date(row.updated_at as string),
   };
@@ -361,35 +364,61 @@ export const useStore = create<StoreState>()(
       },
 
       addTrack: async (trackData, file) => {
-        const { user } = get();
+        const { user, tracks } = get();
         if (!user) return;
+
+        // ── Storage quota check ──
+        if (file) {
+          const usedBytes = tracks.reduce((sum, t) => sum + (t.fileSize ?? 0), 0);
+          if (usedBytes + file.size > STORAGE_QUOTA_FREE_BYTES) {
+            const usedMB  = (usedBytes / 1024 / 1024).toFixed(1);
+            const limitMB = (STORAGE_QUOTA_FREE_BYTES / 1024 / 1024).toFixed(0);
+            get().addToast(`Storage full — ${usedMB}MB of ${limitMB}MB used. Delete tracks to free space.`, 'error');
+            return;
+          }
+        }
+
         let filePath = '';
-        let fileUrl = trackData.fileUrl ?? '';
-        let gainDb = 0;
+        let fileUrl  = trackData.fileUrl ?? '';
+        let gainDb   = 0;
+        let bpm      = trackData.tempo ?? 0;
 
         if (file) {
-          const ext = file.name.split('.').pop();
-          filePath = `${user.id}/${Date.now()}.${ext}`;
-          // Analyze loudness before upload
-          try { gainDb = await analyzeGain(file); } catch (_) { gainDb = 0; }
+          const ext  = file.name.split('.').pop();
+          filePath   = `${user.id}/${Date.now()}.${ext}`;
+
+          // Run gain + BPM analysis in parallel
+          const [detectedGain, detectedBpm] = await Promise.all([
+            analyzeGain(file).catch(() => 0),
+            analyzeBPM(file).catch(() => 0),
+          ]);
+          gainDb = detectedGain;
+          if (detectedBpm > 0) bpm = detectedBpm;
+
           const { error: uploadError } = await supabase.storage.from('audio').upload(filePath, file, { contentType: file.type });
           if (uploadError) { get().addToast('File upload failed: ' + uploadError.message, 'error'); return; }
           const { data: urlData } = await supabase.storage.from('audio').createSignedUrl(filePath, 3600);
           fileUrl = urlData?.signedUrl ?? '';
         }
+
         const { data, error } = await supabase.from('tracks').insert({
           user_id: user.id, title: trackData.title, composer: trackData.composer,
           duration: trackData.duration, file_url: fileUrl, file_path: filePath,
           isrc_code: trackData.isrcCode ?? '', writers: trackData.writers ?? [],
           genre: trackData.genre ?? '', tags: trackData.tags ?? [],
-          mood: trackData.mood ?? '', tempo: trackData.tempo ?? 0,
+          mood: trackData.mood ?? '', tempo: bpm,
           gain_db: gainDb,
+          file_size: file?.size ?? 0,
         }).select().single();
+
         if (!error && data) {
           const newTrack = rowToTrack(data);
           newTrack.fileUrl = fileUrl;
           set((state) => ({ tracks: [newTrack, ...state.tracks] }));
-        } else { get().addToast('Failed to save track: ' + error?.message, 'error'); }
+          if (bpm > 0) get().addToast(`Uploaded · ${bpm} BPM detected`, 'success');
+        } else {
+          get().addToast('Failed to save track: ' + error?.message, 'error');
+        }
       },
 
       updateTrack: async (id, data) => {

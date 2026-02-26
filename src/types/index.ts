@@ -46,10 +46,15 @@ export interface Track {
   tags: string[];
   mood?: string;
   tempo?: number;
-  gainDb?: number;   // normalization gain — applied at playback to hit -14 LUFS
+  gainDb?: number;
+  fileSize?: number;  // bytes — stored for storage quota tracking
   uploadDate: Date;
   updatedAt: Date;
 }
+
+// Storage quota constants
+export const STORAGE_QUOTA_FREE_BYTES  = 200 * 1024 * 1024;  // 200MB
+export const STORAGE_QUOTA_LABEL       = 'Free (200MB)';
 
 export interface TrackMetadata {
   title: string;
