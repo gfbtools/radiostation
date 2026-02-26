@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Copy, Check, Radio, ExternalLink, Code2, Smartphone, Globe, Share2, Image, Upload } from 'lucide-react';
+import { X, Copy, Check, Radio, ExternalLink, Code2, Smartphone, Globe, Share2, Image, Upload, UserCircle } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 
 interface Props {
@@ -11,8 +11,9 @@ const WIDGET_BASE = 'https://radio-station-widget.pages.dev';
 
 export default function MyStationPanel({ onClose }: Props) {
   const { user, uploadLogo, addToast } = useStore();
-  const [copiedLink, setCopiedLink]   = useState(false);
-  const [copiedEmbed, setCopiedEmbed] = useState(false);
+  const [copiedLink, setCopiedLink]       = useState(false);
+  const [copiedEmbed, setCopiedEmbed]     = useState(false);
+  const [copiedProfile, setCopiedProfile] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoPreview, setLogoPreview]     = useState<string>(user?.logoUrl ?? '');
   const [theme, setTheme]                 = useState('dark');
@@ -29,7 +30,10 @@ export default function MyStationPanel({ onClose }: Props) {
   const stationUrl = theme === 'dark'
     ? `${WIDGET_BASE}/?userId=${user?.id}`
     : `${WIDGET_BASE}/?userId=${user?.id}&theme=${theme}`;
-  const embedCode  = `<iframe\n  src="${stationUrl}"\n  width="380"\n  height="520"\n  frameborder="0"\n  allow="autoplay"\n  style="border-radius:16px;"\n></iframe>`;
+
+  const profileUrl = `${window.location.origin}/artist.html?userId=${user?.id}`;
+
+  const embedCode = `<iframe\n  src="${stationUrl}"\n  width="380"\n  height="520"\n  frameborder="0"\n  allow="autoplay"\n  style="border-radius:16px;"\n></iframe>`;
 
   const copyLink = async () => {
     await navigator.clipboard.writeText(stationUrl);
@@ -44,12 +48,18 @@ export default function MyStationPanel({ onClose }: Props) {
     setTimeout(() => setCopiedEmbed(false), 2000);
   };
 
+  const copyProfileLink = async () => {
+    await navigator.clipboard.writeText(profileUrl);
+    setCopiedProfile(true);
+    addToast('Profile link copied!', 'success');
+    setTimeout(() => setCopiedProfile(false), 2000);
+  };
+
   const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) { addToast('Please select an image file', 'error'); return; }
 
-    // Compress image client-side before upload — handles large phone photos
     const compressImage = (f: File): Promise<File> => new Promise((resolve) => {
       const img = new window.Image();
       const url = URL.createObjectURL(f);
@@ -79,7 +89,7 @@ export default function MyStationPanel({ onClose }: Props) {
     const compressed = await compressImage(file);
     const url = await uploadLogo(compressed);
     setLogoUploading(false);
-    if (url) { setLogoPreview(url); addToast('Logo updated! Widget will show your logo.', 'success'); }
+    if (url) { setLogoPreview(url); addToast('Logo updated!', 'success'); }
   };
 
   const shareLinks = [
@@ -114,7 +124,7 @@ export default function MyStationPanel({ onClose }: Props) {
 
         <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6">
 
-          {/* ── Station is LIVE banner ── */}
+          {/* ── Station LIVE banner ── */}
           <div className="flex items-center gap-3 p-4 rounded-2xl" style={{ background: 'rgba(201,255,59,0.06)', border: '1px solid rgba(201,255,59,0.15)' }}>
             <div className="w-2.5 h-2.5 rounded-full bg-[#C9FF3B] animate-pulse flex-shrink-0" />
             <div className="flex-1 min-w-0">
@@ -129,9 +139,45 @@ export default function MyStationPanel({ onClose }: Props) {
             </button>
           </div>
 
+          {/* ── Artist Profile Page ── */}
+          <div className="p-5 rounded-2xl space-y-3" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div className="flex items-center gap-2">
+              <UserCircle size={14} className="text-[#C9FF3B]" />
+              <span className="text-[#B8B8B8] text-xs uppercase tracking-wide">Your Artist Profile Page</span>
+            </div>
+            <p className="text-[#555] text-xs leading-relaxed">
+              A shareable public page with your bio, tracks, social links, and embedded station. Give this link to fans, labels, or bookers.
+            </p>
+            <div className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <p className="text-[#555] text-xs font-mono truncate">{profileUrl}</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={copyProfileLink}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all"
+                style={{
+                  background: copiedProfile ? 'rgba(201,255,59,0.15)' : '#C9FF3B',
+                  color: copiedProfile ? '#C9FF3B' : '#0B0B0D',
+                  border: copiedProfile ? '1px solid rgba(201,255,59,0.3)' : 'none',
+                }}
+              >
+                {copiedProfile ? <><Check size={14} /> Copied!</> : <><Copy size={14} /> Copy Profile Link</>}
+              </button>
+              <button
+                onClick={() => window.open(profileUrl, '_blank')}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm transition-all"
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#B8B8B8' }}
+              >
+                <ExternalLink size={14} /> Preview
+              </button>
+            </div>
+            <p className="text-[#444] text-xs">
+              ✏️ To fill out your bio and social links: tap <strong className="text-[#666]">PRO Accounts</strong> in the nav → <strong className="text-[#666]">Profile</strong> tab
+            </p>
+          </div>
+
           {/* ── Logo + Station preview side by side ── */}
           <div className="grid grid-cols-2 gap-4">
-            {/* Logo upload */}
             <div className="p-5 rounded-2xl space-y-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
               <div className="flex items-center gap-2 mb-1">
                 <Image size={14} className="text-[#B8B8B8]" />
@@ -157,11 +203,10 @@ export default function MyStationPanel({ onClose }: Props) {
                   <Upload size={12} />
                   {logoUploading ? 'Uploading…' : logoPreview ? 'Change Logo' : 'Upload Logo'}
                 </button>
-                <p className="text-[#444] text-[10px] text-center">JPG, PNG or WebP · auto-compressed</p>
+                <p className="text-[#444] text-[10px] text-center">JPG, PNG · auto-compressed</p>
               </div>
             </div>
 
-            {/* Widget preview */}
             <div className="p-5 rounded-2xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
               <div className="flex items-center gap-2 mb-3">
                 <Smartphone size={14} className="text-[#B8B8B8]" />
@@ -183,9 +228,7 @@ export default function MyStationPanel({ onClose }: Props) {
 
           {/* ── Theme picker ── */}
           <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="text-[#B8B8B8] text-xs uppercase tracking-wide">Color Theme</span>
-            </div>
+            <span className="text-[#B8B8B8] text-xs uppercase tracking-wide">Color Theme</span>
             <div className="flex gap-2 flex-wrap">
               {themes.map(t => (
                 <button
@@ -205,14 +248,12 @@ export default function MyStationPanel({ onClose }: Props) {
             </div>
           </div>
 
-          {/* ── Share your link ── */}
+          {/* ── Share your station link ── */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <Share2 size={14} className="text-[#B8B8B8]" />
               <span className="text-[#B8B8B8] text-xs uppercase tracking-wide">Share Your Station</span>
             </div>
-
-            {/* Copy link box */}
             <div className="flex items-center gap-2 p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
               <Globe size={14} className="text-[#666] flex-shrink-0" />
               <p className="flex-1 text-[#B8B8B8] text-xs truncate font-mono">{stationUrl}</p>
@@ -224,8 +265,6 @@ export default function MyStationPanel({ onClose }: Props) {
                 {copiedLink ? <><Check size={12} /> Copied!</> : <><Copy size={12} /> Copy Link</>}
               </button>
             </div>
-
-            {/* Share buttons */}
             <div className="grid grid-cols-2 gap-2">
               {shareLinks.map(({ label, icon, hint, url }) => (
                 <button
@@ -257,7 +296,7 @@ export default function MyStationPanel({ onClose }: Props) {
               <Code2 size={14} className="text-[#B8B8B8]" />
               <span className="text-[#B8B8B8] text-xs uppercase tracking-wide">Embed On Your Website</span>
             </div>
-            <p className="text-[#555] text-xs">Copy this code and paste it anywhere on your website — Wix, Squarespace, WordPress, or any HTML page.</p>
+            <p className="text-[#555] text-xs">Copy this code and paste it anywhere — Wix, Squarespace, WordPress, or any HTML page.</p>
             <div className="relative">
               <pre
                 className="p-4 rounded-xl text-[#B8B8B8] text-xs overflow-x-auto leading-relaxed font-mono"
@@ -277,12 +316,12 @@ export default function MyStationPanel({ onClose }: Props) {
           <div className="p-4 rounded-2xl space-y-3" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
             <p className="text-[#666] text-xs uppercase tracking-wide">How it works</p>
             {[
-              ['🎵', 'Upload tracks to your library — they appear in your widget automatically'],
-              ['🖼️', 'Upload your logo above — it shows in the widget header'],
-              ['🔗', 'Share your link anywhere — no app download needed, works in any browser'],
+              ['🎵', 'Upload tracks to your library — they stream live on your station'],
+              ['👤', 'Fill out your Profile (PRO Accounts → Profile tab) — bio, location, social links'],
+              ['🔗', 'Copy your Profile Link and share it anywhere — fans see everything in one place'],
               ['🎛️', 'Listeners can play, pause, skip and browse your full catalog'],
             ].map(([icon, text]) => (
-              <div key={text} className="flex items-start gap-3">
+              <div key={text as string} className="flex items-start gap-3">
                 <span className="text-base flex-shrink-0">{icon}</span>
                 <p className="text-[#666] text-xs leading-relaxed">{text}</p>
               </div>

@@ -6,6 +6,14 @@ export interface User {
   email: string;
   name: string;
   logoUrl?: string;
+  // Public profile fields
+  bio?: string;
+  location?: string;
+  website?: string;
+  instagramUrl?: string;
+  twitterUrl?: string;
+  soundcloudUrl?: string;
+  mixcloudUrl?: string;
   primaryPRO?: PROName;
   ascapId?: string;
   bmiId?: string;

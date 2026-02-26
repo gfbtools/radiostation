@@ -42,6 +42,13 @@ export default function ProfileSettingsModal({ onClose }: Props) {
 
   const [form, setForm] = useState({
     name:               user?.name ?? '',
+    bio:                user?.bio ?? '',
+    location:           user?.location ?? '',
+    website:            user?.website ?? '',
+    instagramUrl:       user?.instagramUrl ?? '',
+    twitterUrl:         user?.twitterUrl ?? '',
+    soundcloudUrl:      user?.soundcloudUrl ?? '',
+    mixcloudUrl:        user?.mixcloudUrl ?? '',
     primaryPRO:         (user?.primaryPRO ?? '') as PROName | '',
     ascapId:            user?.ascapId ?? '',
     bmiId:              user?.bmiId ?? '',
@@ -86,6 +93,13 @@ export default function ProfileSettingsModal({ onClose }: Props) {
     setSaving(true);
     await updateProfile({
       name:               form.name.trim(),
+      bio:                form.bio.trim(),
+      location:           form.location.trim(),
+      website:            form.website.trim(),
+      instagramUrl:       form.instagramUrl.trim(),
+      twitterUrl:         form.twitterUrl.trim(),
+      soundcloudUrl:      form.soundcloudUrl.trim(),
+      mixcloudUrl:        form.mixcloudUrl.trim(),
       primaryPRO:         form.primaryPRO as PROName | undefined,
       ascapId:            form.ascapId,
       bmiId:              form.bmiId,
@@ -176,7 +190,6 @@ export default function ProfileSettingsModal({ onClose }: Props) {
               <div>
                 <label className="block text-[#B8B8B8] text-xs uppercase tracking-wide mb-3">Station Logo</label>
                 <div className="flex items-center gap-5">
-                  {/* Preview */}
                   <div
                     className="w-20 h-20 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden"
                     style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}
@@ -187,16 +200,8 @@ export default function ProfileSettingsModal({ onClose }: Props) {
                       <Image size={28} className="text-[#444]" />
                     )}
                   </div>
-
-                  {/* Upload button */}
                   <div className="flex-1">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleLogoChange}
-                      className="hidden"
-                    />
+                    <input ref={fileInputRef} type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
                     <button
                       onClick={() => fileInputRef.current?.click()}
                       disabled={logoUploading}
@@ -206,7 +211,7 @@ export default function ProfileSettingsModal({ onClose }: Props) {
                       <Upload size={14} />
                       {logoUploading ? 'Uploading…' : logoPreview ? 'Change Logo' : 'Upload Logo'}
                     </button>
-                    <p className="text-[#555] text-xs mt-2">PNG, JPG, or SVG · Max 5MB · Shown in your public widget</p>
+                    <p className="text-[#555] text-xs mt-2">PNG, JPG · Max 5MB · Shown on your public profile & widget</p>
                   </div>
                 </div>
               </div>
@@ -214,6 +219,36 @@ export default function ProfileSettingsModal({ onClose }: Props) {
               <div className="border-t border-white/5 pt-4 space-y-5">
                 <Field label="Display Name / Artist Name" value={form.name} onChange={(v) => set('name', v)} placeholder="Your name or group name" />
 
+                <div>
+                  <label className="block text-[#B8B8B8] text-xs uppercase tracking-wide mb-1.5">Bio</label>
+                  <textarea
+                    value={form.bio}
+                    onChange={(e) => set('bio', e.target.value)}
+                    placeholder="Tell listeners about yourself, your music, your vibe…"
+                    rows={3}
+                    maxLength={300}
+                    className="w-full px-4 py-2.5 rounded-xl text-[#F2F2F2] text-sm outline-none resize-none transition-all"
+                    style={inputStyle}
+                    onFocus={(e) => (e.target.style.borderColor = 'rgba(201,255,59,0.4)')}
+                    onBlur={(e)  => (e.target.style.borderColor = 'rgba(255,255,255,0.1)')}
+                  />
+                  <p className="text-[#444] text-xs mt-1 text-right">{form.bio.length}/300</p>
+                </div>
+
+                <Field label="Location" value={form.location} onChange={(v) => set('location', v)} placeholder="e.g. New Haven, CT" hint="Shown on your public profile page" />
+              </div>
+
+              <div className="border-t border-white/5 pt-4 space-y-4">
+                <p className="text-[#B8B8B8] text-xs uppercase tracking-wide">Social Links</p>
+                <p className="text-[#555] text-xs -mt-2">These appear as buttons on your public artist profile page.</p>
+                <Field label="Website" value={form.website} onChange={(v) => set('website', v)} placeholder="https://yoursite.com" />
+                <Field label="Instagram URL" value={form.instagramUrl} onChange={(v) => set('instagramUrl', v)} placeholder="https://instagram.com/yourhandle" />
+                <Field label="X / Twitter URL" value={form.twitterUrl} onChange={(v) => set('twitterUrl', v)} placeholder="https://x.com/yourhandle" />
+                <Field label="SoundCloud URL" value={form.soundcloudUrl} onChange={(v) => set('soundcloudUrl', v)} placeholder="https://soundcloud.com/yourhandle" />
+                <Field label="Mixcloud URL" value={form.mixcloudUrl} onChange={(v) => set('mixcloudUrl', v)} placeholder="https://mixcloud.com/yourhandle" />
+              </div>
+
+              <div className="border-t border-white/5 pt-4 space-y-5">
                 <div>
                   <label className="block text-[#B8B8B8] text-xs uppercase tracking-wide mb-2">Primary PRO</label>
                   <p className="text-[#555] text-xs mb-3">This PRO will appear at the top of all exported reports.</p>
