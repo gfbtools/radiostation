@@ -189,6 +189,8 @@ export interface PublicStation {
   name: string;
   logoUrl?: string | null;
   trackCount: number;
+  bio?: string | null;
+  location?: string | null;
 }
 
 // ── DJ Drops ──────────────────────────────────────────────────────────────

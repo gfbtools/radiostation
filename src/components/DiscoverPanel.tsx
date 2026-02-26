@@ -29,7 +29,7 @@ export default function DiscoverPanel({ onClose }: Props) {
       // Get profiles that have at least one track, exclude current user
       const { data: profilesData } = await supabase
         .from('profiles')
-        .select('id, name, logo_url')
+        .select('id, name, logo_url, bio, location')
         .neq('id', user?.id ?? '')
         .not('name', 'is', null);
 
@@ -53,6 +53,8 @@ export default function DiscoverPanel({ onClose }: Props) {
           name: p.name,
           logoUrl: p.logo_url ?? null,
           trackCount: countMap[p.id] ?? 0,
+          bio: p.bio ?? null,
+          location: p.location ?? null,
         }));
 
       setStations(result);
@@ -87,7 +89,7 @@ export default function DiscoverPanel({ onClose }: Props) {
     s.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const StationCard = ({ id, name, logoUrl, trackCount, saved }: { id: string; name: string; logoUrl?: string | null; trackCount?: number; saved?: boolean }) => (
+  const StationCard = ({ id, name, logoUrl, trackCount, bio, location, saved }: { id: string; name: string; logoUrl?: string | null; trackCount?: number; bio?: string | null; location?: string | null; saved?: boolean }) => (
     <div
       className="flex items-center gap-3 p-4 rounded-2xl transition-all group"
       style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
@@ -106,12 +108,18 @@ export default function DiscoverPanel({ onClose }: Props) {
       {/* Info */}
       <div className="flex-1 min-w-0">
         <p className="text-[#F2F2F2] text-sm font-medium truncate">{name}</p>
+        {location && (
+          <p className="text-[#555] text-xs truncate mt-0.5">📍 {location}</p>
+        )}
+        {bio && (
+          <p className="text-[#555] text-xs leading-relaxed mt-1 line-clamp-2">{bio}</p>
+        )}
         {trackCount !== undefined && (
-          <p className="text-[#555] text-xs flex items-center gap-1 mt-0.5">
+          <p className="text-[#555] text-xs flex items-center gap-1 mt-1">
             <Music size={10} /> {trackCount} track{trackCount !== 1 ? 's' : ''}
           </p>
         )}
-        {saved && (
+        {saved && !bio && (
           <p className="text-[#555] text-xs mt-0.5">Saved station</p>
         )}
       </div>
@@ -222,7 +230,7 @@ export default function DiscoverPanel({ onClose }: Props) {
               ) : (
                 <div className="space-y-2">
                   {filteredStations.map((s) => (
-                    <StationCard key={s.id} id={s.id} name={s.name} logoUrl={s.logoUrl} trackCount={s.trackCount} />
+                    <StationCard key={s.id} id={s.id} name={s.name} logoUrl={s.logoUrl} trackCount={s.trackCount} bio={s.bio} location={s.location} />
                   ))}
                 </div>
               )}
