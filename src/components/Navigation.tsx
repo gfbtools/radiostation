@@ -46,12 +46,17 @@ export default function Navigation() {
           <div className="hidden md:flex items-center gap-1">
             {navItems.map(({ label, icon: Icon, target }) => (
               <button key={label} onClick={() => scrollToSection(target)}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-[#B8B8B8] hover:text-[#F2F2F2] hover:bg-white/5 transition-all">
-                <Icon size={16} /><span className="text-sm">{label}</span>
+                className="flex items-center gap-2 px-3 py-2 rounded-xl text-[#B8B8B8] hover:text-[#F2F2F2] hover:bg-white/5 transition-all">
+                <Icon size={15} /><span className="text-sm">{label}</span>
               </button>
             ))}
+            <button onClick={() => setDiscoverOpen(true)}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all ml-1"
+              style={{ color: '#B8B8B8' }}>
+              <Users size={15} /><span className="text-sm">Discover</span>
+            </button>
             <button onClick={() => setOnAirOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ml-1"
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all ml-1"
               style={{
                 background: isLive ? 'rgba(201,255,59,0.1)' : 'rgba(255,80,80,0.1)',
                 color: isLive ? '#C9FF3B' : '#ff6b6b',
@@ -60,14 +65,9 @@ export default function Navigation() {
               <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${isLive ? 'bg-[#C9FF3B]' : 'bg-red-400'}`} /> On Air
             </button>
             <button onClick={() => setStationPanelOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ml-1"
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all ml-1"
               style={{ background: 'rgba(201,255,59,0.12)', color: '#C9FF3B', border: '1px solid rgba(201,255,59,0.2)' }}>
               <Radio size={15} /> My Station
-            </button>
-            <button onClick={() => setDiscoverOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ml-1"
-              style={{ background: 'rgba(255,255,255,0.06)', color: '#B8B8B8', border: '1px solid rgba(255,255,255,0.1)' }}>
-              <Users size={15} /> Discover
             </button>
           </div>
 
@@ -98,6 +98,10 @@ export default function Navigation() {
                     <button onClick={() => { setProfileOpen(true); setUserMenuOpen(false); }}
                       className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#B8B8B8] hover:text-[#F2F2F2] hover:bg-white/5 transition-colors">
                       <UserCircle size={15} /> Profile & Rights
+                    </button>
+                    <button onClick={() => { setDiscoverOpen(true); setUserMenuOpen(false); }}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#B8B8B8] hover:text-[#F2F2F2] hover:bg-white/5 transition-colors">
+                      <Users size={15} /> Discover Stations
                     </button>
                     <button onClick={() => { setOnAirOpen(true); setUserMenuOpen(false); }}
                       className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-white/5"
@@ -144,6 +148,10 @@ export default function Navigation() {
                 className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors"
                 style={{ color: '#C9FF3B' }}>
                 <Radio size={18} /> My Station
+              </button>
+              <button onClick={() => { setDiscoverOpen(true); setMobileMenu(false); }}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-[#B8B8B8] hover:bg-white/5 transition-colors">
+                <Users size={18} /> Discover Stations
               </button>
               <button onClick={() => { setProfileOpen(true); setMobileMenu(false); }}
                 className="flex items-center gap-3 px-4 py-3 rounded-xl text-[#B8B8B8] text-sm hover:bg-white/5 transition-colors">
