@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Play, Pause, Trash2, Upload, Music, Search, Clock, GripVertical } from 'lucide-react';
 import { useStore } from '@/store/useStore';
@@ -16,10 +16,18 @@ export default function LibraryPanel({ onClose }: Props) {
   const [showUpload, setShowUpload] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
-  const dragId = useRef<string | null>(null);
-  const dragOverId = useRef<string | null>(null);
-  const [dragActiveId, setDragActiveId] = useState<string | null>(null);
+  const dragId       = useRef<string | null>(null);
+  const dragOverId   = useRef<string | null>(null);
+  const [dragActiveId, setDragActiveId]         = useState<string | null>(null);
   const [dragOverActiveId, setDragOverActiveId] = useState<string | null>(null);
+
+  // Touch drag state
+  const touchDragId    = useRef<string | null>(null);
+  const touchStartY    = useRef(0);
+  const touchRowHeight = useRef(0);
+  const touchListRef   = useRef<HTMLDivElement>(null);
+  const [touchActiveId, setTouchActiveId]   = useState<string | null>(null);
+  const [touchTargetIdx, setTouchTargetIdx] = useState<number | null>(null);
 
   const isSearching = search.trim().length > 0;
   const filtered = isSearching
@@ -95,11 +103,51 @@ export default function LibraryPanel({ onClose }: Props) {
   };
 
   const handleDragEnd = () => {
-    dragId.current = null;
-    dragOverId.current = null;
-    setDragActiveId(null);
-    setDragOverActiveId(null);
+    dragId.current = null; dragOverId.current = null;
+    setDragActiveId(null); setDragOverActiveId(null);
   };
+
+  // Touch drag — fires only from grip handle so play button stays safe
+  const handleTouchStart = useCallback((e: React.TouchEvent, id: string) => {
+    if (isSearching) return;
+    e.stopPropagation();
+    touchDragId.current = id;
+    touchStartY.current = e.touches[0].clientY;
+    setTouchActiveId(id);
+    const list = touchListRef.current;
+    if (list?.firstElementChild) {
+      touchRowHeight.current = (list.firstElementChild as HTMLElement).offsetHeight + 8;
+    }
+  }, [isSearching]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!touchDragId.current) return;
+    e.preventDefault();
+    const dy      = e.touches[0].clientY - touchStartY.current;
+    const rowH    = touchRowHeight.current || 64;
+    const ids     = tracks.map((t) => t.id);
+    const fromIdx = ids.indexOf(touchDragId.current);
+    const offset  = Math.round(dy / rowH);
+    const toIdx   = Math.max(0, Math.min(ids.length - 1, fromIdx + offset));
+    setTouchTargetIdx(toIdx);
+  }, [tracks]);
+
+  const handleTouchEnd = useCallback(() => {
+    const sourceId = touchDragId.current;
+    if (!sourceId) return;
+    const ids     = tracks.map((t) => t.id);
+    const fromIdx = ids.indexOf(sourceId);
+    const toIdx   = touchTargetIdx ?? fromIdx;
+    if (fromIdx !== toIdx) {
+      const reordered = [...ids];
+      reordered.splice(fromIdx, 1);
+      reordered.splice(toIdx, 0, sourceId);
+      reorderTracks(reordered);
+    }
+    touchDragId.current = null;
+    setTouchActiveId(null);
+    setTouchTargetIdx(null);
+  }, [tracks, touchTargetIdx, reorderTracks]);
 
   const content = (
     <>
@@ -162,65 +210,79 @@ export default function LibraryPanel({ onClose }: Props) {
                 )}
               </div>
             ) : (
-              <div className="space-y-2">
-                {filtered.map((track, i) => (
-                  <div
-                    key={track.id}
-                    draggable={!isSearching}
-                    onDragStart={!isSearching ? (e) => handleDragStart(e, track.id) : undefined}
-                    onDragOver={!isSearching ? (e) => handleDragOver(e, track.id) : undefined}
-                    onDrop={!isSearching ? (e) => handleDrop(e, track.id) : undefined}
-                    onDragEnd={!isSearching ? handleDragEnd : undefined}
-                    className="flex items-center gap-3 p-4 rounded-2xl transition-all group"
-                    style={{
-                      background: isCurrent(track) ? 'rgba(201,255,59,0.06)' : dragOverActiveId === track.id && dragActiveId !== track.id ? 'rgba(201,255,59,0.04)' : 'rgba(255,255,255,0.02)',
-                      border: isCurrent(track) ? '1px solid rgba(201,255,59,0.2)' : dragOverActiveId === track.id && dragActiveId !== track.id ? '1px solid rgba(201,255,59,0.3)' : '1px solid rgba(255,255,255,0.05)',
-                      opacity: dragActiveId === track.id ? 0.35 : 1,
-                      cursor: isSearching ? 'default' : 'grab',
-                      transition: 'opacity 0.15s, border-color 0.15s, background 0.15s',
-                    }}
-                  >
-                    {/* Drag handle */}
-                    {!isSearching && (
-                      <GripVertical size={16} className="text-[#333] group-hover:text-[#555] flex-shrink-0 transition-colors" />
-                    )}
-
-                    {/* Track number / play button */}
-                    <div className="w-8 text-center flex-shrink-0">
-                      <span className="text-[#444] text-sm group-hover:hidden">{i + 1}</span>
-                      <button onClick={() => handlePlay(track)} className="hidden group-hover:flex items-center justify-center w-8 h-8 rounded-lg" style={{ background: 'rgba(201,255,59,0.15)' }}>
-                        {isPlaying(track) ? <Pause size={14} className="text-[#C9FF3B]" /> : <Play size={14} className="text-[#C9FF3B]" />}
-                      </button>
-                      {isCurrent(track) && (
-                        <button onClick={() => handlePlay(track)} className="flex group-hover:hidden items-center justify-center w-8 h-8 rounded-lg" style={{ background: 'rgba(201,255,59,0.15)' }}>
-                          {isPlaying(track) ? <Pause size={14} className="text-[#C9FF3B]" /> : <Play size={14} className="text-[#C9FF3B]" />}
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Track info */}
-                    <div className="flex-1 min-w-0">
-                      <p className={`font-medium truncate text-sm ${isCurrent(track) ? 'text-[#C9FF3B]' : 'text-[#F2F2F2]'}`}>{track.title}</p>
-                      <p className="text-[#666] text-xs truncate">{track.composer}</p>
-                    </div>
-
-                    {track.genre && <span className="tag-pill text-xs hidden sm:inline-flex">{track.genre}</span>}
-                    {!track.fileUrl && <span className="text-yellow-500/70 text-xs flex-shrink-0">No file</span>}
-
-                    <div className="flex items-center gap-1 text-[#666] text-xs w-12 text-right flex-shrink-0">
-                      <Clock size={11} />{formatDur(track.duration)}
-                    </div>
-
-                    <button
-                      onClick={() => handleDelete(track.id)}
-                      className="p-2 rounded-lg transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100"
-                      style={{ color: confirmDelete === track.id ? '#ff5555' : '#666' }}
-                      title={confirmDelete === track.id ? 'Click again to confirm' : 'Delete track'}
+              <div className="space-y-2" ref={touchListRef} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
+                {filtered.map((track, i) => {
+                  const isTouchDragging = touchActiveId === track.id;
+                  const isDropTarget    = touchTargetIdx === i && touchActiveId !== track.id && touchActiveId !== null;
+                  return (
+                    <div
+                      key={track.id}
+                      draggable={!isSearching}
+                      onDragStart={!isSearching ? (e) => handleDragStart(e, track.id) : undefined}
+                      onDragOver={!isSearching ? (e) => handleDragOver(e, track.id) : undefined}
+                      onDrop={!isSearching ? (e) => handleDrop(e, track.id) : undefined}
+                      onDragEnd={!isSearching ? handleDragEnd : undefined}
+                      className="flex items-center gap-3 p-3 rounded-2xl transition-all group"
+                      style={{
+                        background: isCurrent(track) ? 'rgba(201,255,59,0.06)' : isDropTarget || (dragOverActiveId === track.id && dragActiveId !== track.id) ? 'rgba(201,255,59,0.04)' : 'rgba(255,255,255,0.02)',
+                        border: isCurrent(track) ? '1px solid rgba(201,255,59,0.2)' : isDropTarget || (dragOverActiveId === track.id && dragActiveId !== track.id) ? '1px solid rgba(201,255,59,0.4)' : '1px solid rgba(255,255,255,0.05)',
+                        opacity: (dragActiveId === track.id || isTouchDragging) ? 0.35 : 1,
+                        transition: 'opacity 0.15s, border-color 0.15s, background 0.15s',
+                      }}
                     >
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                ))}
+                      {/* Grip handle — large touch target, only thing that initiates drag */}
+                      {!isSearching && (
+                        <div
+                          onTouchStart={(e) => handleTouchStart(e, track.id)}
+                          className="flex-shrink-0 flex items-center justify-center rounded-xl transition-colors"
+                          style={{
+                            width: '40px', height: '40px', cursor: 'grab',
+                            background: isTouchDragging ? 'rgba(201,255,59,0.12)' : 'rgba(255,255,255,0.04)',
+                            touchAction: 'none',
+                          }}
+                          title="Hold and drag to reorder"
+                        >
+                          <GripVertical size={18} className="text-[#555] group-hover:text-[#888] transition-colors" />
+                        </div>
+                      )}
+
+                      {/* Play button — always visible, clearly separated from grip */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handlePlay(track); }}
+                        className="flex items-center justify-center rounded-xl flex-shrink-0 transition-all"
+                        style={{
+                          width: '40px', height: '40px',
+                          background: isCurrent(track) ? 'rgba(201,255,59,0.15)' : 'rgba(255,255,255,0.06)',
+                          color: isCurrent(track) ? '#C9FF3B' : '#B8B8B8',
+                        }}
+                      >
+                        {isPlaying(track) ? <Pause size={15} /> : <Play size={15} />}
+                      </button>
+
+                      {/* Track info */}
+                      <div className="flex-1 min-w-0">
+                        <p className={`font-medium truncate text-sm ${isCurrent(track) ? 'text-[#C9FF3B]' : 'text-[#F2F2F2]'}`}>{track.title}</p>
+                        <p className="text-[#666] text-xs truncate">{track.composer}</p>
+                      </div>
+
+                      {track.genre && <span className="tag-pill text-xs hidden sm:inline-flex">{track.genre}</span>}
+                      {!track.fileUrl && <span className="text-yellow-500/70 text-xs flex-shrink-0">No file</span>}
+
+                      <div className="flex items-center gap-1 text-[#666] text-xs w-12 text-right flex-shrink-0">
+                        <Clock size={11} />{formatDur(track.duration)}
+                      </div>
+
+                      <button
+                        onClick={() => handleDelete(track.id)}
+                        className="p-2 rounded-lg transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100"
+                        style={{ color: confirmDelete === track.id ? '#ff5555' : '#666' }}
+                        title={confirmDelete === track.id ? 'Click again to confirm' : 'Delete track'}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
