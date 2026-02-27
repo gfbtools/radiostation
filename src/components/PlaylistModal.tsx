@@ -9,7 +9,7 @@ interface Props {
 }
 
 export default function PlaylistModal({ playlist, onClose }: Props) {
-  const { tracks, addPlaylist, updatePlaylist, reorderPlaylistTracks, addToast } = useStore();
+  const { tracks, addPlaylist, updatePlaylist, addToast } = useStore();
 
   const [name, setName] = useState(playlist?.name ?? '');
   const [description, setDescription] = useState(playlist?.description ?? '');
@@ -66,7 +66,6 @@ export default function PlaylistModal({ playlist, onClose }: Props) {
         trackIds: selectedIds,
         tracks: playlistTracks,
       });
-      reorderPlaylistTracks(playlist.id, selectedIds);
       addToast(`"${name}" updated`, 'success');
     } else {
       addPlaylist({
