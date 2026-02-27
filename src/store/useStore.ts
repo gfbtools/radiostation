@@ -42,7 +42,7 @@ interface StoreState {
   addTrack: (track: Omit<Track, 'id' | 'uploadDate' | 'updatedAt'>, file?: File) => Promise<void>;
   updateTrack: (id: string, data: Partial<Track>) => Promise<void>;
   deleteTrack: (id: string) => Promise<void>;
-  reorderTracks: (trackIds: string[]) => void;
+  reorderTracks: (trackIds: string[]) => Promise<void>;
   getTrackById: (id: string) => Track | undefined;
   // On-Air config
   onAirTrackIds: string[];
@@ -384,7 +384,7 @@ export const useStore = create<StoreState>()(
         const { user } = get();
         if (!user) return;
         set({ tracksLoading: true });
-        const { data, error } = await supabase.from('tracks').select('*').eq('user_id', user.id).order('upload_date', { ascending: false });
+        const { data, error } = await supabase.from('tracks').select('*').eq('user_id', user.id).order('sort_order', { ascending: true, nullsFirst: false }).order('upload_date', { ascending: false });
         if (!error && data) {
           const tracks = await Promise.all(data.map(async (row) => {
             const track = rowToTrack(row);
@@ -473,21 +473,48 @@ export const useStore = create<StoreState>()(
 
       getTrackById: (id) => get().tracks.find((t) => t.id === id),
 
-      reorderTracks: (trackIds) => {
-        const { tracks } = get();
+      reorderTracks: async (trackIds) => {
+        const { tracks, user } = get();
+        if (!user) return;
         const reordered = trackIds.map((id) => tracks.find((t) => t.id === id)).filter(Boolean) as Track[];
         set({ tracks: reordered });
+        // Persist sort_order for each track
+        await Promise.all(
+          trackIds.map((id, index) =>
+            supabase.from('tracks').update({ sort_order: index + 1 } as Record<string, unknown>).eq('id', id).eq('user_id', user.id)
+          )
+        );
       },
 
       onAirTrackIds: [],
       onAirPlaylistIds: [],
       onAirMode: 'all',
       setOnAir: async (trackIds, playlistIds, mode) => {
-        const { user } = get();
+        const { user, tracks, playlists } = get();
         set({ onAirTrackIds: trackIds, onAirPlaylistIds: playlistIds, onAirMode: mode });
         if (!user) return;
-        // Persist to profiles as radio_config JSON
-        const config = JSON.stringify({ trackIds, playlistIds, mode });
+
+        // Build ordered track list for the widget to consume
+        let orderedTrackIds: string[] = [];
+        if (mode === 'all') {
+          orderedTrackIds = tracks.map((t) => t.id);
+        } else {
+          // Selected tracks in library sort order
+          const libraryOrdered = tracks.filter((t) => trackIds.includes(t.id)).map((t) => t.id);
+          // Tracks from selected playlists in playlist order
+          const seen = new Set(libraryOrdered);
+          for (const pid of playlistIds) {
+            const pl = playlists.find((p) => p.id === pid);
+            if (pl) {
+              for (const t of pl.tracks) {
+                if (!seen.has(t.id)) { libraryOrdered.push(t.id); seen.add(t.id); }
+              }
+            }
+          }
+          orderedTrackIds = libraryOrdered;
+        }
+
+        const config = JSON.stringify({ trackIds, playlistIds, mode, orderedTrackIds });
         await supabase.from('profiles').update({ radio_config: config } as Record<string, unknown>).eq('id', user.id);
       },
 

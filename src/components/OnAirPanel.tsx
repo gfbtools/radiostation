@@ -119,18 +119,20 @@ export default function OnAirPanel({ onClose }: Props) {
             </button>
           </div>
 
-          {/* Status bar */}
           <div className="flex items-center gap-3 px-4 py-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
             <div className="w-2 h-2 rounded-full bg-[#C9FF3B] animate-pulse flex-shrink-0" />
             {mode === 'all' ? (
               <p className="text-[#B8B8B8] text-sm">
-                Broadcasting <span className="text-[#F2F2F2] font-medium">{tracks.length} tracks</span> from your full library
+                Broadcasting <span className="text-[#F2F2F2] font-medium">{tracks.length} track{tracks.length !== 1 ? 's' : ''}</span> from your full library
               </p>
             ) : (
               <p className="text-[#B8B8B8] text-sm">
                 <span className="text-[#F2F2F2] font-medium">{selectedTracks.size} track{selectedTracks.size !== 1 ? 's' : ''}</span>
                 {selectedPlaylists.size > 0 && <> + <span className="text-[#F2F2F2] font-medium">{selectedPlaylists.size} playlist{selectedPlaylists.size !== 1 ? 's' : ''}</span></>}
-                {' '}selected for broadcast
+                {selectedTracks.size === 0 && selectedPlaylists.size === 0
+                  ? <span className="text-[#666]"> — nothing selected</span>
+                  : ' selected for broadcast'
+                }
               </p>
             )}
           </div>
