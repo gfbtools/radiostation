@@ -29,6 +29,10 @@ export default function PlayerBar() {
   const totalPlayedRef = useRef<number>(0);
   const sessionId = useRef<string>(Math.random().toString(36).substr(2, 9));
 
+  // Drop counter — tracks how many songs played since last drop
+  const tracksSinceDropRef = useRef<number>(0);
+  const dropIndexRef = useRef<number>(0);
+
   const formatTime = (seconds: number) => {
     if (!isFinite(seconds) || isNaN(seconds)) return '0:00';
     const mins = Math.floor(seconds / 60);
@@ -61,6 +65,32 @@ export default function PlayerBar() {
       }
       totalPlayedRef.current = 0;
       playStartTimeRef.current = null;
+
+      // Check if a drop should play before next track
+      const { drops, dropConfig } = useStore.getState();
+      if (dropConfig.enabled && drops.length > 0) {
+        tracksSinceDropRef.current += 1;
+        if (tracksSinceDropRef.current >= dropConfig.interval) {
+          tracksSinceDropRef.current = 0;
+          // Pick drop
+          let drop;
+          if (dropConfig.order === 'random') {
+            drop = drops[Math.floor(Math.random() * drops.length)];
+          } else {
+            drop = drops[dropIndexRef.current % drops.length];
+            dropIndexRef.current += 1;
+          }
+          if (drop?.fileUrl) {
+            // Play drop audio then advance to next track when done
+            const dropAudio = new Audio(drop.fileUrl);
+            dropAudio.onended = () => useStore.getState().nextTrack();
+            dropAudio.onerror = () => useStore.getState().nextTrack();
+            dropAudio.play().catch(() => useStore.getState().nextTrack());
+            return; // Don't call nextTrack yet — drop's onended will do it
+          }
+        }
+      }
+
       useStore.getState().nextTrack();
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
