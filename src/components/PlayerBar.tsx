@@ -86,7 +86,7 @@ export default function PlayerBar() {
           if (drop?.fileUrl) {
             _dropPlaying = true;
             const dropAudio = new Audio(drop.fileUrl);
-            dropAudio.volume = audioEngine.volume ?? 1;
+            dropAudio.volume = 1;
             const afterDrop = () => {
               _dropPlaying = false;
               useStore.getState().nextTrack();
