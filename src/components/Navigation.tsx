@@ -27,6 +27,8 @@ export default function Navigation() {
   const [isScrolled, setIsScrolled]       = useState(false);
   const [isMobileMenuOpen, setMobileMenu] = useState(false);
   const [profileOpen, setProfileOpen]             = useState(false);
+  const [profileTab, setProfileTab]               = useState<string>('profile');
+  const openProfile = (tab: string) => { setProfileTab(tab); setProfileOpen(true); };
   const [onAirOpen, setOnAirOpen]                 = useState(false);
   const [userMenuOpen, setUserMenuOpen]   = useState(false);
   const [discoverOpen, setDiscoverOpen]   = useState(false);
@@ -83,7 +85,7 @@ export default function Navigation() {
 
           {/* Desktop user menu */}
           <div className="hidden md:flex items-center gap-2 relative">
-            <button onClick={() => setProfileOpen(true)}
+            <button onClick={() => openProfile('profile')}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-[#B8B8B8] hover:text-[#F2F2F2] hover:bg-white/5 transition-all">
               <Settings size={15} /><span className="text-sm">PRO Accounts</span>
             </button>
@@ -183,7 +185,7 @@ export default function Navigation() {
                 className="flex items-center gap-3 px-4 py-3 rounded-xl text-[#B8B8B8] text-sm hover:bg-white/5 transition-colors">
                 <CalendarDays size={18} /> Show Scheduler
               </button>
-              <button onClick={() => { setProfileOpen(true); setMobileMenu(false); }}
+              <button onClick={() => { openProfile('pros'); setMobileMenu(false); }}
                 className="flex items-center gap-3 px-4 py-3 rounded-xl text-[#B8B8B8] text-sm hover:bg-white/5 transition-colors">
                 <Settings size={18} /> PRO Accounts
               </button>
@@ -197,7 +199,7 @@ export default function Navigation() {
         </>
       )}
 
-      {profileOpen        && <ProfileSettingsModal onClose={() => setProfileOpen(false)} />}
+      {profileOpen        && <ProfileSettingsModal onClose={() => setProfileOpen(false)} defaultTab={profileTab as any} />}
       {stationPanelOpen && <MyStationPanel       onClose={() => setStationPanelOpen(false)} />}
       {onAirOpen        && <OnAirPanel           onClose={() => setOnAirOpen(false)} />}
       {discoverOpen     && <DiscoverPanel        onClose={() => setDiscoverOpen(false)} />}

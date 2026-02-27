@@ -6,6 +6,7 @@ import type { PROName } from '@/types';
 
 interface Props {
   onClose: () => void;
+  defaultTab?: Tab;
 }
 
 const PROS: { id: PROName; label: string; country: string; field: string }[] = [
@@ -31,9 +32,9 @@ const inputStyle = {
   border: '1px solid rgba(255,255,255,0.1)',
 };
 
-export default function ProfileSettingsModal({ onClose }: Props) {
+export default function ProfileSettingsModal({ onClose, defaultTab }: Props) {
   const { user, updateProfile, uploadLogo, addToast } = useStore();
-  const [tab, setTab]       = useState<Tab>('profile');
+  const [tab, setTab]       = useState<Tab>(defaultTab ?? 'profile');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved]   = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);

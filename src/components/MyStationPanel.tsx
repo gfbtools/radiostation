@@ -14,6 +14,7 @@ export default function MyStationPanel({ onClose }: Props) {
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoPreview, setLogoPreview]     = useState<string>(user?.logoUrl ?? '');
   const [theme, setTheme]                 = useState('dark');
+  const [font, setFont]                   = useState('inter');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const themes = [
@@ -24,9 +25,19 @@ export default function MyStationPanel({ onClose }: Props) {
     { id: 'midnight', label: 'Midnight', color: '#5B9BFF' },
   ];
 
+
+  const fonts = [
+    { id: 'inter',    label: 'Inter',     style: 'font-sans' },
+    { id: 'mono',     label: 'Mono',      style: 'font-mono' },
+    { id: 'serif',    label: 'Serif',     style: 'font-serif' },
+    { id: 'orbitron', label: 'Orbitron',  style: '' },
+    { id: 'oswald',   label: 'Oswald',    style: '' },
+    { id: 'playfair', label: 'Playfair',  style: '' },
+  ];
   const stationUrl = theme === 'dark'
     ? `${WIDGET_BASE}/?userId=${user?.id}`
-    : `${WIDGET_BASE}/?userId=${user?.id}&theme=${theme}`;
+    : `${WIDGET_BASE}/?userId=${user?.id}&theme=${theme}&font=${font}`;
+  const stationUrlBase = stationUrl.replace(/&font=[^&]*/, '') + `&font=${font}`;
 
   const embedCode = `<iframe\n  src="${stationUrl}"\n  width="380"\n  height="520"\n  frameborder="0"\n  allow="autoplay"\n  style="border-radius:16px;"\n></iframe>`;
 
@@ -136,12 +147,12 @@ export default function MyStationPanel({ onClose }: Props) {
               </div>
               <div className="flex flex-col items-center gap-3">
                 <div
-                  className="w-20 h-20 rounded-2xl flex items-center justify-center overflow-hidden"
+                  className="w-32 h-32 rounded-2xl flex items-center justify-center overflow-hidden"
                   style={{ background: 'rgba(255,255,255,0.04)', border: '2px dashed rgba(255,255,255,0.1)' }}
                 >
                   {logoPreview
                     ? <img src={logoPreview} alt="Logo" className="w-full h-full object-cover" />
-                    : <Image size={28} className="text-[#333]" />
+                    : <Image size={36} className="text-[#333]" />
                   }
                 </div>
                 <input ref={fileInputRef} type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
