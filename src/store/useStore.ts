@@ -522,10 +522,14 @@ export const useStore = create<StoreState>()(
       playlistsLoading: false,
 
       fetchPlaylists: async () => {
-        const { user, tracks } = get();
+        const { user } = get();
         if (!user) return;
         const { data, error } = await supabase.from('playlists').select('*').eq('user_id', user.id).order('created_date', { ascending: false });
-        if (!error && data) set({ playlists: data.map((row) => rowToPlaylist(row, tracks)) });
+        if (!error && data) {
+          // Re-read tracks at resolution time, not capture time
+          const { tracks } = get();
+          set({ playlists: data.map((row) => rowToPlaylist(row, tracks)) });
+        }
       },
 
       addPlaylist: async (playlist) => {

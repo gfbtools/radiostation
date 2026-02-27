@@ -11,8 +11,16 @@ export default function OnAirPanel({ onClose }: Props) {
   const { tracks, playlists, onAirTrackIds, onAirPlaylistIds, onAirMode, setOnAir, addToast } = useStore();
 
   const [mode, setMode] = useState<'all' | 'selected'>(onAirMode);
-  const [selectedTracks, setSelectedTracks] = useState<Set<string>>(new Set(onAirTrackIds));
-  const [selectedPlaylists, setSelectedPlaylists] = useState<Set<string>>(new Set(onAirPlaylistIds));
+  // Filter saved IDs against what actually exists to prevent stale ghost selections
+  const [selectedTracks, setSelectedTracks] = useState<Set<string>>(() => {
+    const validIds = new Set(tracks.map(t => t.id));
+    if (onAirMode === 'all') return new Set(tracks.map(t => t.id));
+    return new Set(onAirTrackIds.filter(id => validIds.has(id)));
+  });
+  const [selectedPlaylists, setSelectedPlaylists] = useState<Set<string>>(() => {
+    const validIds = new Set(playlists.map(p => p.id));
+    return new Set(onAirPlaylistIds.filter(id => validIds.has(id)));
+  });
   const [tracksExpanded, setTracksExpanded] = useState(true);
   const [playlistsExpanded, setPlaylistsExpanded] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -83,7 +91,10 @@ export default function OnAirPanel({ onClose }: Props) {
           {/* Mode toggle */}
           <div className="grid grid-cols-2 gap-3">
             <button
-              onClick={() => setMode('all')}
+              onClick={() => {
+                setMode('all');
+                setSelectedTracks(new Set(tracks.map(t => t.id)));
+              }}
               className="flex items-center gap-3 p-4 rounded-2xl text-left transition-all"
               style={{
                 background: mode === 'all' ? 'rgba(201,255,59,0.08)' : 'rgba(255,255,255,0.03)',
