@@ -105,6 +105,8 @@ interface StoreState {
   fetchShows: () => Promise<void>;
   addShow: (show: Omit<Show, 'id' | 'userId' | 'createdAt'>) => Promise<void>;
   deleteShow: (id: string) => Promise<void>;
+  startShowEngine: () => void;
+  stopShowEngine: () => void;
   // Discover
   savedStations: SavedStation[];
   fetchSavedStations: () => Promise<void>;
@@ -240,6 +242,8 @@ export const useStore = create<StoreState>()(
           await get().fetchTracks();
           await get().fetchPlaylists();
           await get().fetchPlayLogs();
+          await get().fetchShows();
+          get().startShowEngine();
         } else {
           set({ isLoadingAuth: false });
         }
@@ -283,7 +287,7 @@ export const useStore = create<StoreState>()(
           createdAt: new Date(data.user.created_at), updatedAt: new Date(),
         };
         set({ user, isAuthenticated: true });
-        await get().fetchTracks(); await get().fetchPlaylists(); await get().fetchPlayLogs();
+        await get().fetchTracks(); await get().fetchPlaylists(); await get().fetchPlayLogs(); await get().fetchShows(); get().startShowEngine();
         get().addToast(`Welcome back, ${user.name}!`, 'success');
         return true;
       },
@@ -307,7 +311,7 @@ export const useStore = create<StoreState>()(
             ascapId: '', createdAt: new Date(data.user.created_at), updatedAt: new Date(),
           };
           set({ user, isAuthenticated: true });
-          await get().fetchTracks(); await get().fetchPlaylists(); await get().fetchPlayLogs();
+          await get().fetchTracks(); await get().fetchPlaylists(); await get().fetchPlayLogs(); await get().fetchShows(); get().startShowEngine();
           get().addToast(`Welcome, ${name}! Your account is ready.`, 'success');
           return true;
         }
@@ -812,6 +816,50 @@ export const useStore = create<StoreState>()(
         await supabase.from('shows').delete().eq('id', id);
         set((s) => ({ shows: s.shows.filter((sh) => sh.id !== id) }));
         get().addToast('Show removed', 'success');
+      },
+
+      startShowEngine: () => {
+        // Clear any existing engine
+        if ((get() as any)._showEngineTimer) clearInterval((get() as any)._showEngineTimer);
+
+        const checkShows = () => {
+          const { shows, playlists, player, playPlaylist } = get();
+          if (!shows.length) return;
+
+          const now = new Date();
+          const currentDay = now.getDay();
+          const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+          for (const show of shows) {
+            if (!show.isActive) continue;
+            if (show.dayOfWeek !== currentDay) continue;
+
+            const [h, m] = show.startTime.split(':').map(Number);
+            const showStart = h * 60 + m;
+            const showEnd = showStart + show.durationMinutes;
+
+            if (currentMinutes >= showStart && currentMinutes < showEnd) {
+              // Show should be active — check if we're already playing it
+              const playlist = playlists.find((p) => p.id === show.playlistId);
+              if (!playlist) continue;
+              if (player.currentPlaylist?.id === show.playlistId) continue; // already playing
+              playPlaylist(playlist, 0);
+              get().addToast(`🎙 Now airing: ${show.name}`, 'success');
+              return;
+            }
+          }
+        };
+
+        checkShows(); // run immediately
+        const timer = setInterval(checkShows, 30000); // check every 30s
+        (get() as any)._showEngineTimer = timer;
+      },
+
+      stopShowEngine: () => {
+        if ((get() as any)._showEngineTimer) {
+          clearInterval((get() as any)._showEngineTimer);
+          (get() as any)._showEngineTimer = null;
+        }
       },
 
       // ── Discover / Saved Stations ──

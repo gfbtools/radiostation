@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import { X, Plus, Trash2, Clock, ListMusic, CalendarDays, Radio } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 
-
 interface Props {
   onClose: () => void;
 }
@@ -20,7 +19,6 @@ function nextOccurrence(dayIndex: number, time: string): string {
   if (diff < 0 || (diff === 0 && target <= now)) diff += 7;
   target.setDate(target.getDate() + diff);
   if (diff === 0 && target > now) {
-    // today
     return `Today ${target.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
   }
   return target.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -30,38 +28,49 @@ export default function ShowSchedulerPanel({ onClose }: Props) {
   const { playlists, shows, fetchShows, addShow, deleteShow, addToast } = useStore();
 
   const [adding, setAdding] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [newShow, setNewShow] = useState({
     name: '',
     playlistId: '',
-    dayOfWeek: 1,
+    daysOfWeek: [] as number[],
     startTime: '20:00',
     durationMinutes: 60,
     repeat: true as boolean,
   });
 
-  useEffect(() => {
-    fetchShows();
-  }, [fetchShows]);
+  useEffect(() => { fetchShows(); }, [fetchShows]);
 
-  const handleAdd = async () => {
-    if (!newShow.name.trim())        { addToast('Show needs a name', 'error');          return; }
-    if (!newShow.playlistId)         { addToast('Select a playlist', 'error');           return; }
-
-    await addShow({
-      name:            newShow.name.trim(),
-      playlistId:      newShow.playlistId,
-      dayOfWeek:       newShow.dayOfWeek,
-      startTime:       newShow.startTime,
-      durationMinutes: newShow.durationMinutes,
-      repeat:          newShow.repeat,
-      isActive:        true,
-    });
-
-    setAdding(false);
-    setNewShow({ name: '', playlistId: '', dayOfWeek: 1, startTime: '20:00', durationMinutes: 60, repeat: true });
+  const toggleDay = (i: number) => {
+    setNewShow((p) => ({
+      ...p,
+      daysOfWeek: p.daysOfWeek.includes(i)
+        ? p.daysOfWeek.filter((d) => d !== i)
+        : [...p.daysOfWeek, i].sort(),
+    }));
   };
 
-  // Group shows by day
+  const handleAdd = async () => {
+    if (!newShow.name.trim())            { addToast('Show needs a name', 'error');      return; }
+    if (!newShow.playlistId)             { addToast('Select a playlist', 'error');       return; }
+    if (newShow.daysOfWeek.length === 0) { addToast('Select at least one day', 'error'); return; }
+
+    setSaving(true);
+    for (const day of newShow.daysOfWeek) {
+      await addShow({
+        name:            newShow.name.trim(),
+        playlistId:      newShow.playlistId,
+        dayOfWeek:       day,
+        startTime:       newShow.startTime,
+        durationMinutes: newShow.durationMinutes,
+        repeat:          newShow.repeat,
+        isActive:        true,
+      });
+    }
+    setSaving(false);
+    setAdding(false);
+    setNewShow({ name: '', playlistId: '', daysOfWeek: [], startTime: '20:00', durationMinutes: 60, repeat: true });
+  };
+
   const showsByDay = DAYS.map((_, i) => ({
     day: i,
     shows: shows.filter((s) => s.dayOfWeek === i).sort((a, b) => a.startTime.localeCompare(b.startTime)),
@@ -80,7 +89,6 @@ export default function ShowSchedulerPanel({ onClose }: Props) {
         className="relative w-full max-w-2xl max-h-[90vh] flex flex-col glass-card z-10"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between p-8 pb-4 flex-shrink-0">
           <div>
             <h2 className="text-[#F2F2F2] text-2xl font-semibold flex items-center gap-3">
@@ -95,12 +103,8 @@ export default function ShowSchedulerPanel({ onClose }: Props) {
 
         <div className="flex-1 overflow-y-auto px-8 pb-8 space-y-6">
 
-          {/* Add show form */}
           {adding ? (
-            <div
-              className="p-5 rounded-2xl space-y-4"
-              style={{ background: 'rgba(201,255,59,0.04)', border: '1px solid rgba(201,255,59,0.15)' }}
-            >
+            <div className="p-5 rounded-2xl space-y-4" style={{ background: 'rgba(201,255,59,0.04)', border: '1px solid rgba(201,255,59,0.15)' }}>
               <p className="text-[#C9FF3B] text-sm font-semibold">New Show</p>
 
               <input
@@ -127,26 +131,33 @@ export default function ShowSchedulerPanel({ onClose }: Props) {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-[#666] text-xs mb-2">Day</p>
-                  <div className="flex gap-1 flex-wrap">
-                    {DAYS.map((d, i) => (
+              <div>
+                <p className="text-[#666] text-xs mb-2">Days — <span className="text-[#B8B8B8]">select all that apply</span></p>
+                <div className="flex gap-1.5 flex-wrap">
+                  {DAYS.map((d, i) => {
+                    const active = newShow.daysOfWeek.includes(i);
+                    return (
                       <button
                         key={d}
-                        onClick={() => setNewShow((p) => ({ ...p, dayOfWeek: i }))}
+                        onClick={() => toggleDay(i)}
                         className="px-3 py-1.5 rounded-lg text-xs transition-all"
                         style={{
-                          background: newShow.dayOfWeek === i ? 'rgba(201,255,59,0.2)' : 'rgba(255,255,255,0.05)',
-                          border: newShow.dayOfWeek === i ? '1px solid rgba(201,255,59,0.4)' : '1px solid rgba(255,255,255,0.08)',
-                          color: newShow.dayOfWeek === i ? '#C9FF3B' : '#B8B8B8',
+                          background: active ? 'rgba(201,255,59,0.2)' : 'rgba(255,255,255,0.05)',
+                          border: active ? '1px solid rgba(201,255,59,0.4)' : '1px solid rgba(255,255,255,0.08)',
+                          color: active ? '#C9FF3B' : '#B8B8B8',
                         }}
                       >
                         {d}
                       </button>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
+                {newShow.daysOfWeek.length > 0 && (
+                  <p className="text-[#555] text-xs mt-1.5">{newShow.daysOfWeek.map((d) => DAYS_FULL[d]).join(', ')}</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-[#666] text-xs mb-2">Start time</p>
                   <input
@@ -157,9 +168,6 @@ export default function ShowSchedulerPanel({ onClose }: Props) {
                     style={{ ...inputStyle, colorScheme: 'dark' }}
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-[#666] text-xs mb-2">Duration</p>
                   <div className="flex gap-2">
@@ -179,29 +187,32 @@ export default function ShowSchedulerPanel({ onClose }: Props) {
                     ))}
                   </div>
                 </div>
-                <div>
-                  <p className="text-[#666] text-xs mb-2">Repeat</p>
-                  <div className="flex gap-2">
-                    {[{ v: true, l: 'Weekly' }, { v: false, l: 'One-time' }].map(({ v, l }) => (
-                      <button
-                        key={l}
-                        onClick={() => setNewShow((p) => ({ ...p, repeat: v }))}
-                        className="flex-1 py-2 rounded-xl text-xs transition-all"
-                        style={{
-                          background: newShow.repeat === v ? 'rgba(201,255,59,0.15)' : 'rgba(255,255,255,0.05)',
-                          border: newShow.repeat === v ? '1px solid rgba(201,255,59,0.3)' : '1px solid rgba(255,255,255,0.08)',
-                          color: newShow.repeat === v ? '#C9FF3B' : '#B8B8B8',
-                        }}
-                      >
-                        {l}
-                      </button>
-                    ))}
-                  </div>
+              </div>
+
+              <div>
+                <p className="text-[#666] text-xs mb-2">Repeat</p>
+                <div className="flex gap-2">
+                  {[{ v: true, l: 'Weekly' }, { v: false, l: 'One-time' }].map(({ v, l }) => (
+                    <button
+                      key={l}
+                      onClick={() => setNewShow((p) => ({ ...p, repeat: v }))}
+                      className="flex-1 py-2 rounded-xl text-xs transition-all"
+                      style={{
+                        background: newShow.repeat === v ? 'rgba(201,255,59,0.15)' : 'rgba(255,255,255,0.05)',
+                        border: newShow.repeat === v ? '1px solid rgba(201,255,59,0.3)' : '1px solid rgba(255,255,255,0.08)',
+                        color: newShow.repeat === v ? '#C9FF3B' : '#B8B8B8',
+                      }}
+                    >
+                      {l}
+                    </button>
+                  ))}
                 </div>
               </div>
 
               <div className="flex gap-3 pt-1">
-                <button onClick={handleAdd} className="btn-primary flex-1 py-2.5 text-sm">Save Show</button>
+                <button onClick={handleAdd} disabled={saving} className="btn-primary flex-1 py-2.5 text-sm disabled:opacity-50">
+                  {saving ? 'Saving…' : `Save${newShow.daysOfWeek.length > 1 ? ` (${newShow.daysOfWeek.length} days)` : ''}`}
+                </button>
                 <button onClick={() => setAdding(false)} className="btn-secondary flex-1 py-2.5 text-sm">Cancel</button>
               </div>
             </div>
@@ -209,22 +220,14 @@ export default function ShowSchedulerPanel({ onClose }: Props) {
             <button
               onClick={() => setAdding(true)}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm transition-all"
-              style={{
-                background: 'rgba(201,255,59,0.08)',
-                border: '1px dashed rgba(201,255,59,0.3)',
-                color: '#C9FF3B',
-              }}
+              style={{ background: 'rgba(201,255,59,0.08)', border: '1px dashed rgba(201,255,59,0.3)', color: '#C9FF3B' }}
             >
               <Plus size={16} /> Schedule a Show
             </button>
           )}
 
-          {/* Schedule view */}
           {shows.length === 0 && !adding ? (
-            <div
-              className="p-8 rounded-2xl text-center"
-              style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
-            >
+            <div className="p-8 rounded-2xl text-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
               <Radio size={28} className="mx-auto mb-3 text-[#444]" />
               <p className="text-[#F2F2F2] font-medium mb-1">No shows scheduled</p>
               <p className="text-[#666] text-sm">Add a show to automatically switch playlists on your station</p>
@@ -260,16 +263,10 @@ export default function ShowSchedulerPanel({ onClose }: Props) {
                               {show.durationMinutes < 60 ? `${show.durationMinutes}m` : `${show.durationMinutes / 60}h`} ·{' '}
                               {show.repeat ? 'Weekly' : 'One-time'}
                             </p>
-                            <p className="text-[#444] text-xs mt-0.5">
-                              Next: {nextOccurrence(show.dayOfWeek, show.startTime)}
-                            </p>
+                            <p className="text-[#444] text-xs mt-0.5">Next: {nextOccurrence(show.dayOfWeek, show.startTime)}</p>
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
-                            <div
-                              className="w-2 h-2 rounded-full"
-                              style={{ background: show.isActive ? '#C9FF3B' : '#444' }}
-                              title={show.isActive ? 'Active' : 'Inactive'}
-                            />
+                            <div className="w-2 h-2 rounded-full" style={{ background: show.isActive ? '#C9FF3B' : '#444' }} />
                             <button
                               onClick={() => deleteShow(show.id)}
                               className="p-2 rounded-xl text-[#666] hover:text-red-400 hover:bg-red-500/10 transition-colors"
@@ -286,13 +283,9 @@ export default function ShowSchedulerPanel({ onClose }: Props) {
             </div>
           )}
 
-          {/* How it works */}
-          <div
-            className="p-4 rounded-2xl text-sm text-[#666] leading-relaxed"
-            style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}
-          >
+          <div className="p-4 rounded-2xl text-sm text-[#666] leading-relaxed" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
             <span className="text-[#C9FF3B] font-medium">How it works: </span>
-            When a scheduled show time arrives and your station is live, Studio2Radio automatically switches to the assigned playlist. The show runs for the set duration then returns to your default on-air selection.
+            When a scheduled show time arrives, Studio2Radio automatically switches to the assigned playlist. The show runs for the set duration then returns to your default on-air selection.
           </div>
 
         </div>
