@@ -37,7 +37,6 @@ export default function MyStationPanel({ onClose }: Props) {
   const stationUrl = theme === 'dark'
     ? `${WIDGET_BASE}/?userId=${user?.id}`
     : `${WIDGET_BASE}/?userId=${user?.id}&theme=${theme}&font=${font}`;
-  const stationUrlBase = stationUrl.replace(/&font=[^&]*/, '') + `&font=${font}`;
 
   const embedCode = `<iframe\n  src="${stationUrl}"\n  width="380"\n  height="520"\n  frameborder="0"\n  allow="autoplay"\n  style="border-radius:16px;"\n></iframe>`;
 
@@ -205,6 +204,27 @@ export default function MyStationPanel({ onClose }: Props) {
                 >
                   <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: t.color }} />
                   {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Font picker ── */}
+          <div className="space-y-3">
+            <span className="text-[#B8B8B8] text-xs uppercase tracking-wide">Station Font</span>
+            <div className="flex gap-2 flex-wrap">
+              {fonts.map(f => (
+                <button
+                  key={f.id}
+                  onClick={() => setFont(f.id)}
+                  className="px-3 py-2 rounded-xl text-xs transition-all"
+                  style={{
+                    background: font === f.id ? 'rgba(201,255,59,0.12)' : 'rgba(255,255,255,0.03)',
+                    border: font === f.id ? '1px solid rgba(201,255,59,0.4)' : '1px solid rgba(255,255,255,0.07)',
+                    color: font === f.id ? '#C9FF3B' : '#B8B8B8',
+                  }}
+                >
+                  {f.label}
                 </button>
               ))}
             </div>
