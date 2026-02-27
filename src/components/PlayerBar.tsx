@@ -6,6 +6,9 @@ import { useStore } from '@/store/useStore';
 import { useEffect, useRef, useCallback } from 'react';
 import { audioEngine } from '@/lib/audioEngine';
 
+// Module-level flag to block track loading while a drop is playing
+let _dropPlaying = false;
+
 export default function PlayerBar() {
   const {
     player,
@@ -81,12 +84,25 @@ export default function PlayerBar() {
             dropIndexRef.current += 1;
           }
           if (drop?.fileUrl) {
-            // Play drop audio then advance to next track when done
+            _dropPlaying = true;
             const dropAudio = new Audio(drop.fileUrl);
-            dropAudio.onended = () => useStore.getState().nextTrack();
-            dropAudio.onerror = () => useStore.getState().nextTrack();
-            dropAudio.play().catch(() => useStore.getState().nextTrack());
-            return; // Don't call nextTrack yet — drop's onended will do it
+            dropAudio.volume = audioEngine.volume ?? 1;
+            const afterDrop = () => {
+              _dropPlaying = false;
+              useStore.getState().nextTrack();
+              // Manually trigger load since useEffect won't re-fire (track ID already changed)
+              setTimeout(() => {
+                const { player } = useStore.getState();
+                if (player.currentTrack?.fileUrl) {
+                  audioEngine.load(player.currentTrack.fileUrl, player.currentTrack.gainDb ?? 0);
+                  if (player.isPlaying) audioEngine.play().catch(() => {});
+                }
+              }, 50);
+            };
+            dropAudio.onended = afterDrop;
+            dropAudio.onerror = afterDrop;
+            dropAudio.play().catch(afterDrop);
+            return;
           }
         }
       }
@@ -98,6 +114,7 @@ export default function PlayerBar() {
   // ─── React to track changes ─────────────────────────────────────────────────
   useEffect(() => {
     if (!player.currentTrack) return;
+    if (_dropPlaying) return; // wait for drop to finish before loading next track
     const url = player.currentTrack.fileUrl;
     if (url) {
       audioEngine.load(url, player.currentTrack.gainDb ?? 0);

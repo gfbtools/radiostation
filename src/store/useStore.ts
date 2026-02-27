@@ -114,6 +114,9 @@ interface StoreState {
   removeSavedStation: (userId: string) => Promise<void>;
 }
 
+// Module-level timer — survives Zustand re-renders
+let _showEngineTimer: ReturnType<typeof setInterval> | null = null;
+
 const initialPlayerState: PlayerState = {
   currentTrack: null,
   currentPlaylist: null,
@@ -819,8 +822,7 @@ export const useStore = create<StoreState>()(
       },
 
       startShowEngine: () => {
-        // Clear any existing engine
-        if ((get() as any)._showEngineTimer) clearInterval((get() as any)._showEngineTimer);
+        if (_showEngineTimer) clearInterval(_showEngineTimer);
 
         const checkShows = () => {
           const { shows, playlists, player, playPlaylist } = get();
@@ -839,27 +841,22 @@ export const useStore = create<StoreState>()(
             const showEnd = showStart + show.durationMinutes;
 
             if (currentMinutes >= showStart && currentMinutes < showEnd) {
-              // Show should be active — check if we're already playing it
               const playlist = playlists.find((p) => p.id === show.playlistId);
               if (!playlist) continue;
-              if (player.currentPlaylist?.id === show.playlistId) continue; // already playing
+              if (player.currentPlaylist?.id === show.playlistId) continue;
               playPlaylist(playlist, 0);
-              get().addToast(`🎙 Now airing: ${show.name}`, 'success');
+              get().addToast('🎙 Now airing: ' + show.name, 'success');
               return;
             }
           }
         };
 
-        checkShows(); // run immediately
-        const timer = setInterval(checkShows, 30000); // check every 30s
-        (get() as any)._showEngineTimer = timer;
+        checkShows();
+        _showEngineTimer = setInterval(checkShows, 30000);
       },
 
       stopShowEngine: () => {
-        if ((get() as any)._showEngineTimer) {
-          clearInterval((get() as any)._showEngineTimer);
-          (get() as any)._showEngineTimer = null;
-        }
+        if (_showEngineTimer) { clearInterval(_showEngineTimer); _showEngineTimer = null; }
       },
 
       // ── Discover / Saved Stations ──

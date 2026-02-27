@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Plus, Trash2, Clock, ListMusic, CalendarDays, Radio } from 'lucide-react';
+import { X, Plus, Trash2, Clock, ListMusic, CalendarDays, Radio, Pencil } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 
 interface Props {
@@ -29,6 +29,7 @@ export default function ShowSchedulerPanel({ onClose }: Props) {
 
   const [adding, setAdding] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingShow, setEditingShow] = useState<string | null>(null); // show id being edited
   const [newShow, setNewShow] = useState({
     name: '',
     playlistId: '',
@@ -39,6 +40,19 @@ export default function ShowSchedulerPanel({ onClose }: Props) {
   });
 
   useEffect(() => { fetchShows(); }, [fetchShows]);
+
+  const openEdit = (show: any) => {
+    setNewShow({
+      name: show.name,
+      playlistId: show.playlistId,
+      daysOfWeek: [show.dayOfWeek],
+      startTime: show.startTime,
+      durationMinutes: show.durationMinutes,
+      repeat: show.repeat,
+    });
+    setEditingShow(show.id);
+    setAdding(true);
+  };
 
   const toggleDay = (i: number) => {
     setNewShow((p) => ({
@@ -55,6 +69,11 @@ export default function ShowSchedulerPanel({ onClose }: Props) {
     if (newShow.daysOfWeek.length === 0) { addToast('Select at least one day', 'error'); return; }
 
     setSaving(true);
+    // If editing, delete the original show first
+    if (editingShow) {
+      await deleteShow(editingShow);
+      setEditingShow(null);
+    }
     for (const day of newShow.daysOfWeek) {
       await addShow({
         name:            newShow.name.trim(),
@@ -105,7 +124,7 @@ export default function ShowSchedulerPanel({ onClose }: Props) {
 
           {adding ? (
             <div className="p-5 rounded-2xl space-y-4" style={{ background: 'rgba(201,255,59,0.04)', border: '1px solid rgba(201,255,59,0.15)' }}>
-              <p className="text-[#C9FF3B] text-sm font-semibold">New Show</p>
+              <p className="text-[#C9FF3B] text-sm font-semibold">{editingShow ? 'Edit Show' : 'New Show'}</p>
 
               <input
                 type="text"
@@ -213,7 +232,7 @@ export default function ShowSchedulerPanel({ onClose }: Props) {
                 <button onClick={handleAdd} disabled={saving} className="btn-primary flex-1 py-2.5 text-sm disabled:opacity-50">
                   {saving ? 'Saving…' : `Save${newShow.daysOfWeek.length > 1 ? ` (${newShow.daysOfWeek.length} days)` : ''}`}
                 </button>
-                <button onClick={() => setAdding(false)} className="btn-secondary flex-1 py-2.5 text-sm">Cancel</button>
+                <button onClick={() => { setAdding(false); setEditingShow(null); }} className="btn-secondary flex-1 py-2.5 text-sm">Cancel</button>
               </div>
             </div>
           ) : (
@@ -267,6 +286,12 @@ export default function ShowSchedulerPanel({ onClose }: Props) {
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
                             <div className="w-2 h-2 rounded-full" style={{ background: show.isActive ? '#C9FF3B' : '#444' }} />
+                            <button
+                              onClick={() => openEdit(show)}
+                              className="p-2 rounded-xl text-[#666] hover:text-[#C9FF3B] hover:bg-white/5 transition-colors"
+                            >
+                              <Pencil size={15} />
+                            </button>
                             <button
                               onClick={() => deleteShow(show.id)}
                               className="p-2 rounded-xl text-[#666] hover:text-red-400 hover:bg-red-500/10 transition-colors"
