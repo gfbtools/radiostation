@@ -22,7 +22,7 @@ function scrollToSection(id: string) {
 }
 
 export default function Navigation() {
-  const { user, logout, onAirMode, onAirTrackIds, stationPanelOpen, setStationPanelOpen } = useStore();
+  const { user, logout, onAirMode, onAirTrackIds, stationPanelOpen, setStationPanelOpen, setLibraryPanelOpen, setPlaylistPanelOpen } = useStore();
   const isLive = onAirMode === 'all' || onAirTrackIds.length > 0;
   const [isScrolled, setIsScrolled]       = useState(false);
   const [isMobileMenuOpen, setMobileMenu] = useState(false);
@@ -53,7 +53,11 @@ export default function Navigation() {
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-1">
             {navItems.map(({ label, icon: Icon, target }) => (
-              <button key={label} onClick={() => scrollToSection(target)}
+              <button key={label} onClick={() => {
+                if (target === 'library') setLibraryPanelOpen(true);
+                else if (target === 'playlists') setPlaylistPanelOpen(true);
+                else scrollToSection(target);
+              }}
                 className="flex items-center gap-2 px-3 py-2 rounded-xl text-[#B8B8B8] hover:text-[#F2F2F2] hover:bg-white/5 transition-all">
                 <Icon size={15} /><span className="text-sm">{label}</span>
               </button>
@@ -115,7 +119,7 @@ export default function Navigation() {
                       className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#B8B8B8] hover:text-[#F2F2F2] hover:bg-white/5 transition-colors">
                       <CalendarDays size={15} /> Show Scheduler
                     </button>
-                    <button onClick={() => { setProfileOpen(true); setUserMenuOpen(false); }}
+                    <button onClick={() => { openProfile('profile'); setUserMenuOpen(false); }}
                       className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#B8B8B8] hover:text-[#F2F2F2] hover:bg-white/5 transition-colors">
                       <UserCircle size={15} /> Profile & Rights
                     </button>
@@ -154,7 +158,11 @@ export default function Navigation() {
             <div className="flex flex-col px-4 py-3 gap-1">
               {navItems.map(({ label, icon: Icon, target }) => (
                 <button key={label}
-                  onClick={() => { scrollToSection(target); setMobileMenu(false); }}
+                  onClick={() => {
+                    if (target === 'library') { setLibraryPanelOpen(true); setMobileMenu(false); }
+                    else if (target === 'playlists') { setPlaylistPanelOpen(true); setMobileMenu(false); }
+                    else { scrollToSection(target); setMobileMenu(false); }
+                  }}
                   className="flex items-center gap-3 px-4 py-3 rounded-xl text-[#F2F2F2] text-sm hover:bg-white/5 transition-colors text-left">
                   <Icon size={18} /> {label}
                 </button>

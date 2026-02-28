@@ -34,9 +34,11 @@ export default function MyStationPanel({ onClose }: Props) {
     { id: 'oswald',   label: 'Oswald',    style: '' },
     { id: 'playfair', label: 'Playfair',  style: '' },
   ];
-  const stationUrl = theme === 'dark'
+  const stationUrl = font === 'inter' && theme === 'dark'
     ? `${WIDGET_BASE}/?userId=${user?.id}`
-    : `${WIDGET_BASE}/?userId=${user?.id}&theme=${theme}&font=${font}`;
+    : theme === 'dark'
+      ? `${WIDGET_BASE}/?userId=${user?.id}&font=${font}`
+      : `${WIDGET_BASE}/?userId=${user?.id}&theme=${theme}&font=${font}`;
 
   const embedCode = `<iframe\n  src="${stationUrl}"\n  width="380"\n  height="520"\n  frameborder="0"\n  allow="autoplay"\n  style="border-radius:16px;"\n></iframe>`;
 
