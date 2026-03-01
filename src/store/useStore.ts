@@ -101,12 +101,14 @@ interface StoreState {
   deleteDrop: (id: string) => Promise<void>;
   updateDropConfig: (config: Partial<DropConfig>) => Promise<void>;
   // ── Show Scheduling ──────────────────────────────────────────────────────
+  activeShow: Show | null;
   shows: Show[];
   fetchShows: () => Promise<void>;
   addShow: (show: Omit<Show, 'id' | 'userId' | 'createdAt'>) => Promise<void>;
   deleteShow: (id: string) => Promise<void>;
   startShowEngine: () => void;
   stopShowEngine: () => void;
+  dismissShow: () => void;
   // Discover
   savedStations: SavedStation[];
   fetchSavedStations: () => Promise<void>;
@@ -771,6 +773,7 @@ export const useStore = create<StoreState>()(
 
       // ── Show Scheduling ──────────────────────────────────────────────────
       shows: [],
+      activeShow: null,
 
       fetchShows: async () => {
         const { user } = get();
@@ -857,6 +860,11 @@ export const useStore = create<StoreState>()(
 
       stopShowEngine: () => {
         if (_showEngineTimer) { clearInterval(_showEngineTimer); _showEngineTimer = null; }
+      },
+
+      dismissShow: () => {
+        set({ activeShow: null });
+        get().pause();
       },
 
       // ── Discover / Saved Stations ──

@@ -70,7 +70,8 @@ export default function PlayerBar() {
       playStartTimeRef.current = null;
 
       // Check if a drop should play before next track
-      const { drops, dropConfig } = useStore.getState();
+      const { drops, dropConfig, activeShow } = useStore.getState();
+      if (activeShow) { useStore.getState().nextTrack(); return; } // no drops during shows
       if (dropConfig.enabled && drops.length > 0) {
         tracksSinceDropRef.current += 1;
         if (tracksSinceDropRef.current >= dropConfig.interval) {

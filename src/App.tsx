@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import Navigation from '@/components/Navigation';
+import ShowBanner from '@/components/ShowBanner';
 import PlayerBar from '@/components/PlayerBar';
 import ToastContainer from '@/components/ToastContainer';
 import AuthModal from '@/components/AuthModal';
@@ -52,6 +53,7 @@ function App() {
   return (
     <div className="relative min-h-screen" style={{ backgroundColor: '#0B0B0D' }}>
       <div className="grain-overlay" />
+      <ShowBanner />
       <Navigation />
       <main className="relative pb-[110px] md:pb-[80px]">
         <Hero />

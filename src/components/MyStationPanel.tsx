@@ -140,7 +140,7 @@ export default function MyStationPanel({ onClose }: Props) {
           </div>
 
           {/* ── Logo + Widget preview ── */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-4">
             <div className="p-5 rounded-2xl space-y-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
               <div className="flex items-center gap-2 mb-1">
                 <Image size={14} className="text-[#B8B8B8]" />
@@ -148,12 +148,12 @@ export default function MyStationPanel({ onClose }: Props) {
               </div>
               <div className="flex flex-col items-center gap-3">
                 <div
-                  className="w-32 h-32 rounded-2xl flex items-center justify-center overflow-hidden"
+                  className="w-40 h-40 rounded-2xl flex items-center justify-center overflow-hidden mx-auto"
                   style={{ background: 'rgba(255,255,255,0.04)', border: '2px dashed rgba(255,255,255,0.1)' }}
                 >
                   {logoPreview
                     ? <img src={logoPreview} alt="Logo" className="w-full h-full object-cover" />
-                    : <Image size={36} className="text-[#333]" />
+                    : <Image size={48} className="text-[#333]" />
                   }
                 </div>
                 <input ref={fileInputRef} type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
@@ -177,6 +177,7 @@ export default function MyStationPanel({ onClose }: Props) {
               </div>
               <div className="rounded-xl overflow-hidden" style={{ height: '220px' }}>
                 <iframe
+                  key={stationUrl}
                   src={stationUrl}
                   width="100%"
                   height="100%"
