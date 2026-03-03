@@ -215,6 +215,9 @@ export const useStore = create<StoreState>()(
               set({ onAirTrackIds: rc.trackIds ?? [], onAirPlaylistIds: rc.playlistIds ?? [], onAirMode: rc.mode ?? 'all' });
             } catch { /* ignore parse errors */ }
           }
+          if (profile?.drop_config) {
+            try { set({ dropConfig: JSON.parse(profile.drop_config as string) }); } catch { /* ignore */ }
+          }
           await get().fetchTracks();
           await get().fetchPlaylists();
           await get().fetchPlayLogs();
@@ -257,6 +260,7 @@ export const useStore = create<StoreState>()(
           createdAt: new Date(data.user.created_at), updatedAt: new Date(),
         };
         set({ user, isAuthenticated: true });
+        if (profile?.drop_config) { try { set({ dropConfig: JSON.parse(profile.drop_config as string) }); } catch { /* */ } }
         await get().fetchTracks(); await get().fetchPlaylists(); await get().fetchPlayLogs();
         await get().fetchDrops(); await get().fetchShows(); get().startShowEngine();
         get().addToast(`Welcome back, ${user.name}!`, 'success');
@@ -727,6 +731,7 @@ export const useStore = create<StoreState>()(
           const now = new Date();
           const currentDay = now.getDay();
           const currentMinutes = now.getHours() * 60 + now.getMinutes();
+          console.log('[ShowEngine] check — day:', currentDay, 'min:', currentMinutes, 'shows:', shows.length, 'activeShow:', activeShow?.name ?? null);
 
           // If show is active, check if it ended
           if (activeShow) {
@@ -758,6 +763,7 @@ export const useStore = create<StoreState>()(
             const showEnd = showStart + show.durationMinutes;
             if (currentMinutes >= showStart && currentMinutes < showEnd) {
               const playlist = playlists.find((p) => p.id === show.playlistId);
+              console.log('[ShowEngine] show window matched:', show.name, 'playlist found:', !!playlist);
               if (!playlist) continue;
               if (player.currentPlaylist?.id === show.playlistId) {
                 set({ activeShow: show });
@@ -772,7 +778,7 @@ export const useStore = create<StoreState>()(
         };
 
         checkShows();
-        _showEngineTimer = setInterval(checkShows, 30000);
+        _showEngineTimer = setInterval(checkShows, 10000);
       },
 
       stopShowEngine: () => {

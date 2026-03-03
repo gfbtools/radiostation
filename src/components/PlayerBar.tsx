@@ -68,6 +68,7 @@ export default function PlayerBar() {
       playStartTimeRef.current = null;
 
       const { drops, dropConfig, activeShow } = useStore.getState();
+      console.log('[Drops] onEnded — enabled:', dropConfig.enabled, 'drops:', drops.length, 'activeShow:', !!activeShow, 'tracksSinceDrop:', _tracksSinceDrop, 'interval:', dropConfig.interval);
       if (!activeShow && dropConfig.enabled && drops.length > 0) {
         _tracksSinceDrop += 1;
         if (_tracksSinceDrop >= dropConfig.interval) {
