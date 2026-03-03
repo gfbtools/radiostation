@@ -11,8 +11,14 @@ import type {
   TrackFilters,
   Toast,
   SavedStation,
+  Drop,
+  DropConfig,
+  Show,
 } from '@/types';
 import { STORAGE_QUOTA_FREE_BYTES } from '@/types';
+
+// Module-level timer — must live outside Zustand state or it gets garbage collected
+let _showEngineTimer: ReturnType<typeof setInterval> | null = null;
 
 // Resolve a stored logo path (or already-signed URL) to a fresh signed URL
 async function resolveLogoUrl(logoPath: string): Promise<string> {
@@ -90,6 +96,23 @@ interface StoreState {
   setPlaylistPanelOpen: (open: boolean) => void;
   reportsPanelOpen: boolean;
   setReportsPanelOpen: (open: boolean) => void;
+  // ── DJ Drops ──────────────────────────────────────────────────────────────
+  drops: Drop[];
+  dropConfig: DropConfig;
+  fetchDrops: () => Promise<void>;
+  addDrop: (file: File, title: string) => Promise<void>;
+  deleteDrop: (id: string) => Promise<void>;
+  updateDropConfig: (config: Partial<DropConfig>) => Promise<void>;
+  // ── Show Scheduling ────────────────────────────────────────────────────────
+  shows: Show[];
+  activeShow: Show | null;
+  previousPlaylistId: string | null;
+  fetchShows: () => Promise<void>;
+  addShow: (show: Omit<Show, 'id' | 'userId' | 'createdAt'>) => Promise<void>;
+  deleteShow: (id: string) => Promise<void>;
+  startShowEngine: () => void;
+  stopShowEngine: () => void;
+  dismissShow: () => void;
   // Discover
   savedStations: SavedStation[];
   fetchSavedStations: () => Promise<void>;
