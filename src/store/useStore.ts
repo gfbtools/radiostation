@@ -794,6 +794,8 @@ export const useStore = create<StoreState>()(
               }
               set({ activeShow: show, previousPlaylistId: player.currentPlaylist?.id ?? null });
               get().playPlaylist(playlist, 0);
+              // Small delay to let audioEngine load, then ensure playing
+              setTimeout(() => { if (!get().player.isPlaying) get().resume(); }, 300);
               get().addToast('Now airing: ' + show.name, 'success');
               return;
             }
