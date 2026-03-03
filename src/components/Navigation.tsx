@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Music, ListMusic, BarChart3, Settings, Menu, X, UserCircle, LogOut, Radio, Users, TrendingUp, Mic, CalendarDays } from 'lucide-react';
+import { Music, ListMusic, BarChart3, Settings, Menu, X, UserCircle, LogOut, Radio, Users, CalendarDays } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import ProfileSettingsModal from '@/components/ProfileSettingsModal';
 import MyStationPanel from '@/components/MyStationPanel';
 import DiscoverPanel from '@/components/DiscoverPanel';
 import OnAirPanel from '@/components/OnAirPanel';
-import AnalyticsPanel from '@/components/AnalyticsPanel';
-import DropsPanel from '@/components/DropsPanel';
 import ShowSchedulerPanel from '@/components/ShowSchedulerPanel';
+import ShowBanner from '@/components/ShowBanner';
 
 const navItems = [
   { label: 'Library',   icon: Music,     target: 'library' },
@@ -22,19 +21,15 @@ function scrollToSection(id: string) {
 }
 
 export default function Navigation() {
-  const { user, logout, onAirMode, onAirTrackIds, stationPanelOpen, setStationPanelOpen, setLibraryPanelOpen, setPlaylistPanelOpen } = useStore();
+  const { user, logout, onAirMode, onAirTrackIds, stationPanelOpen, setStationPanelOpen } = useStore();
   const isLive = onAirMode === 'all' || onAirTrackIds.length > 0;
   const [isScrolled, setIsScrolled]       = useState(false);
   const [isMobileMenuOpen, setMobileMenu] = useState(false);
-  const [profileOpen, setProfileOpen]             = useState(false);
-  const [profileTab, setProfileTab]               = useState<string>('profile');
-  const openProfile = (tab: string) => { setProfileTab(tab); setProfileOpen(true); };
-  const [onAirOpen, setOnAirOpen]                 = useState(false);
+  const [profileOpen, setProfileOpen]     = useState(false);
+  const [showsOpen, setShowsOpen]         = useState(false);
+  const [onAirOpen, setOnAirOpen]         = useState(false);
   const [userMenuOpen, setUserMenuOpen]   = useState(false);
   const [discoverOpen, setDiscoverOpen]   = useState(false);
-  const [analyticsOpen, setAnalyticsOpen] = useState(false);
-  const [dropsOpen, setDropsOpen]         = useState(false);
-  const [showsOpen, setShowsOpen]         = useState(false);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 100);
@@ -53,11 +48,7 @@ export default function Navigation() {
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-1">
             {navItems.map(({ label, icon: Icon, target }) => (
-              <button key={label} onClick={() => {
-                if (target === 'library') setLibraryPanelOpen(true);
-                else if (target === 'playlists') setPlaylistPanelOpen(true);
-                else scrollToSection(target);
-              }}
+              <button key={label} onClick={() => scrollToSection(target)}
                 className="flex items-center gap-2 px-3 py-2 rounded-xl text-[#B8B8B8] hover:text-[#F2F2F2] hover:bg-white/5 transition-all">
                 <Icon size={15} /><span className="text-sm">{label}</span>
               </button>
@@ -76,6 +67,11 @@ export default function Navigation() {
               }}>
               <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${isLive ? 'bg-[#C9FF3B]' : 'bg-red-400'}`} /> On Air
             </button>
+            <button onClick={() => setShowsOpen(true)}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all ml-1"
+              style={{ color: '#B8B8B8' }}>
+              <CalendarDays size={15} /> Schedule
+            </button>
             <button onClick={() => setStationPanelOpen(true)}
               className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all ml-1"
               style={{ background: 'rgba(201,255,59,0.12)', color: '#C9FF3B', border: '1px solid rgba(201,255,59,0.2)' }}>
@@ -89,7 +85,7 @@ export default function Navigation() {
 
           {/* Desktop user menu */}
           <div className="hidden md:flex items-center gap-2 relative">
-            <button onClick={() => openProfile('profile')}
+            <button onClick={() => setProfileOpen(true)}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-[#B8B8B8] hover:text-[#F2F2F2] hover:bg-white/5 transition-all">
               <Settings size={15} /><span className="text-sm">PRO Accounts</span>
             </button>
@@ -107,19 +103,7 @@ export default function Navigation() {
                   <div className="fixed inset-0 z-[95]" onClick={() => setUserMenuOpen(false)} />
                   <div className="absolute right-0 top-full mt-2 w-48 rounded-2xl overflow-hidden z-[96] py-1"
                     style={{ background: '#1A1A1D', border: '1px solid rgba(255,255,255,0.1)' }}>
-                    <button onClick={() => { setAnalyticsOpen(true); setUserMenuOpen(false); }}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#B8B8B8] hover:text-[#F2F2F2] hover:bg-white/5 transition-colors">
-                      <TrendingUp size={15} /> Analytics
-                    </button>
-                    <button onClick={() => { setDropsOpen(true); setUserMenuOpen(false); }}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#B8B8B8] hover:text-[#F2F2F2] hover:bg-white/5 transition-colors">
-                      <Mic size={15} /> DJ Drops
-                    </button>
-                    <button onClick={() => { setShowsOpen(true); setUserMenuOpen(false); }}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#B8B8B8] hover:text-[#F2F2F2] hover:bg-white/5 transition-colors">
-                      <CalendarDays size={15} /> Show Scheduler
-                    </button>
-                    <button onClick={() => { openProfile('profile'); setUserMenuOpen(false); }}
+                    <button onClick={() => { setProfileOpen(true); setUserMenuOpen(false); }}
                       className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#B8B8B8] hover:text-[#F2F2F2] hover:bg-white/5 transition-colors">
                       <UserCircle size={15} /> Profile & Rights
                     </button>
@@ -158,11 +142,7 @@ export default function Navigation() {
             <div className="flex flex-col px-4 py-3 gap-1">
               {navItems.map(({ label, icon: Icon, target }) => (
                 <button key={label}
-                  onClick={() => {
-                    if (target === 'library') { setLibraryPanelOpen(true); setMobileMenu(false); }
-                    else if (target === 'playlists') { setPlaylistPanelOpen(true); setMobileMenu(false); }
-                    else { scrollToSection(target); setMobileMenu(false); }
-                  }}
+                  onClick={() => { scrollToSection(target); setMobileMenu(false); }}
                   className="flex items-center gap-3 px-4 py-3 rounded-xl text-[#F2F2F2] text-sm hover:bg-white/5 transition-colors text-left">
                   <Icon size={18} /> {label}
                 </button>
@@ -181,19 +161,7 @@ export default function Navigation() {
                 className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-[#B8B8B8] hover:bg-white/5 transition-colors">
                 <Users size={18} /> Discover Stations
               </button>
-              <button onClick={() => { setAnalyticsOpen(true); setMobileMenu(false); }}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-[#B8B8B8] text-sm hover:bg-white/5 transition-colors">
-                <TrendingUp size={18} /> Analytics
-              </button>
-              <button onClick={() => { setDropsOpen(true); setMobileMenu(false); }}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-[#B8B8B8] text-sm hover:bg-white/5 transition-colors">
-                <Mic size={18} /> DJ Drops
-              </button>
-              <button onClick={() => { setShowsOpen(true); setMobileMenu(false); }}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-[#B8B8B8] text-sm hover:bg-white/5 transition-colors">
-                <CalendarDays size={18} /> Show Scheduler
-              </button>
-              <button onClick={() => { openProfile('pros'); setMobileMenu(false); }}
+              <button onClick={() => { setProfileOpen(true); setMobileMenu(false); }}
                 className="flex items-center gap-3 px-4 py-3 rounded-xl text-[#B8B8B8] text-sm hover:bg-white/5 transition-colors">
                 <Settings size={18} /> PRO Accounts
               </button>
@@ -207,13 +175,12 @@ export default function Navigation() {
         </>
       )}
 
-      {profileOpen        && <ProfileSettingsModal onClose={() => setProfileOpen(false)} defaultTab={profileTab as any} />}
+      {profileOpen      && <ProfileSettingsModal onClose={() => setProfileOpen(false)} />}
       {stationPanelOpen && <MyStationPanel       onClose={() => setStationPanelOpen(false)} />}
       {onAirOpen        && <OnAirPanel           onClose={() => setOnAirOpen(false)} />}
       {discoverOpen     && <DiscoverPanel        onClose={() => setDiscoverOpen(false)} />}
-      {analyticsOpen    && <AnalyticsPanel       onClose={() => setAnalyticsOpen(false)} />}
-      {dropsOpen        && <DropsPanel           onClose={() => setDropsOpen(false)} />}
       {showsOpen        && <ShowSchedulerPanel   onClose={() => setShowsOpen(false)} />}
+      <ShowBanner />
     </>
   );
 }

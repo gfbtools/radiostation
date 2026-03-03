@@ -34,11 +34,7 @@ export default function MyStationPanel({ onClose }: Props) {
     { id: 'oswald',   label: 'Oswald',    style: '' },
     { id: 'playfair', label: 'Playfair',  style: '' },
   ];
-  const stationUrl = font === 'inter' && theme === 'dark'
-    ? `${WIDGET_BASE}/?userId=${user?.id}`
-    : theme === 'dark'
-      ? `${WIDGET_BASE}/?userId=${user?.id}&font=${font}`
-      : `${WIDGET_BASE}/?userId=${user?.id}&theme=${theme}&font=${font}`;
+  const stationUrl = `${WIDGET_BASE}/?userId=${user?.id}&theme=${theme}&font=${font}`;
 
   const embedCode = `<iframe\n  src="${stationUrl}"\n  width="380"\n  height="520"\n  frameborder="0"\n  allow="autoplay"\n  style="border-radius:16px;"\n></iframe>`;
 
@@ -148,7 +144,7 @@ export default function MyStationPanel({ onClose }: Props) {
               </div>
               <div className="flex flex-col items-center gap-3">
                 <div
-                  className="w-40 h-40 rounded-2xl flex items-center justify-center overflow-hidden mx-auto"
+                  className="w-full aspect-square rounded-2xl flex items-center justify-center overflow-hidden"
                   style={{ background: 'rgba(255,255,255,0.04)', border: '2px dashed rgba(255,255,255,0.1)' }}
                 >
                   {logoPreview

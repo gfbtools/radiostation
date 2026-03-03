@@ -11,9 +11,6 @@ import type {
   TrackFilters,
   Toast,
   SavedStation,
-  Drop,
-  DropConfig,
-  Show,
 } from '@/types';
 import { STORAGE_QUOTA_FREE_BYTES } from '@/types';
 
@@ -42,7 +39,7 @@ interface StoreState {
   addTrack: (track: Omit<Track, 'id' | 'uploadDate' | 'updatedAt'>, file?: File) => Promise<void>;
   updateTrack: (id: string, data: Partial<Track>) => Promise<void>;
   deleteTrack: (id: string) => Promise<void>;
-  reorderTracks: (trackIds: string[]) => Promise<void>;
+  reorderTracks: (trackIds: string[]) => void;
   getTrackById: (id: string) => Track | undefined;
   // On-Air config
   onAirTrackIds: string[];
@@ -93,31 +90,12 @@ interface StoreState {
   setPlaylistPanelOpen: (open: boolean) => void;
   reportsPanelOpen: boolean;
   setReportsPanelOpen: (open: boolean) => void;
-  // ── DJ Drops ────────────────────────────────────────────────────────────
-  drops: Drop[];
-  dropConfig: DropConfig;
-  fetchDrops: () => Promise<void>;
-  addDrop: (file: File, title: string) => Promise<void>;
-  deleteDrop: (id: string) => Promise<void>;
-  updateDropConfig: (config: Partial<DropConfig>) => Promise<void>;
-  // ── Show Scheduling ──────────────────────────────────────────────────────
-  activeShow: Show | null;
-  shows: Show[];
-  fetchShows: () => Promise<void>;
-  addShow: (show: Omit<Show, 'id' | 'userId' | 'createdAt'>) => Promise<void>;
-  deleteShow: (id: string) => Promise<void>;
-  startShowEngine: () => void;
-  stopShowEngine: () => void;
-  dismissShow: () => void;
   // Discover
   savedStations: SavedStation[];
   fetchSavedStations: () => Promise<void>;
   saveStation: (station: SavedStation) => Promise<void>;
   removeSavedStation: (userId: string) => Promise<void>;
 }
-
-// Module-level timer — survives Zustand re-renders
-let _showEngineTimer: ReturnType<typeof setInterval> | null = null;
 
 const initialPlayerState: PlayerState = {
   currentTrack: null,
@@ -212,13 +190,6 @@ export const useStore = create<StoreState>()(
             email: session.user.email ?? '',
             name: profile?.name ?? session.user.email?.split('@')[0] ?? '',
             logoUrl:            await resolveLogoUrl(profile?.logo_url ?? ''),
-            bio:                profile?.bio ?? '',
-            location:           profile?.location ?? '',
-            website:            profile?.website ?? '',
-            instagramUrl:       profile?.instagram_url ?? '',
-            twitterUrl:         profile?.twitter_url ?? '',
-            soundcloudUrl:      profile?.soundcloud_url ?? '',
-            mixcloudUrl:        profile?.mixcloud_url ?? '',
             ascapId: profile?.ascap_id ?? '',
             primaryPRO:         profile?.primary_pro ?? undefined,
             bmiId:              profile?.bmi_id ?? '',
@@ -247,6 +218,7 @@ export const useStore = create<StoreState>()(
           await get().fetchTracks();
           await get().fetchPlaylists();
           await get().fetchPlayLogs();
+          await get().fetchDrops();
           await get().fetchShows();
           get().startShowEngine();
         } else {
@@ -268,13 +240,6 @@ export const useStore = create<StoreState>()(
           id: data.user.id, email: data.user.email ?? '',
           name: profile?.name ?? email.split('@')[0],
           logoUrl:            await resolveLogoUrl(profile?.logo_url ?? ''),
-          bio:                profile?.bio ?? '',
-          location:           profile?.location ?? '',
-          website:            profile?.website ?? '',
-          instagramUrl:       profile?.instagram_url ?? '',
-          twitterUrl:         profile?.twitter_url ?? '',
-          soundcloudUrl:      profile?.soundcloud_url ?? '',
-          mixcloudUrl:        profile?.mixcloud_url ?? '',
           ascapId: profile?.ascap_id ?? '',
           primaryPRO:         profile?.primary_pro ?? undefined,
           bmiId:            profile?.bmi_id ?? '',
@@ -292,7 +257,8 @@ export const useStore = create<StoreState>()(
           createdAt: new Date(data.user.created_at), updatedAt: new Date(),
         };
         set({ user, isAuthenticated: true });
-        await get().fetchTracks(); await get().fetchPlaylists(); await get().fetchPlayLogs(); await get().fetchShows(); get().startShowEngine();
+        await get().fetchTracks(); await get().fetchPlaylists(); await get().fetchPlayLogs();
+        await get().fetchDrops(); await get().fetchShows(); get().startShowEngine();
         get().addToast(`Welcome back, ${user.name}!`, 'success');
         return true;
       },
@@ -316,7 +282,8 @@ export const useStore = create<StoreState>()(
             ascapId: '', createdAt: new Date(data.user.created_at), updatedAt: new Date(),
           };
           set({ user, isAuthenticated: true });
-          await get().fetchTracks(); await get().fetchPlaylists(); await get().fetchPlayLogs(); await get().fetchShows(); get().startShowEngine();
+          await get().fetchTracks(); await get().fetchPlaylists(); await get().fetchPlayLogs();
+          await get().fetchDrops(); await get().fetchShows(); get().startShowEngine();
           get().addToast(`Welcome, ${name}! Your account is ready.`, 'success');
           return true;
         }
@@ -336,13 +303,6 @@ export const useStore = create<StoreState>()(
         await supabase.from('profiles').update({
           name:               data.name,
           logo_url:           data.logoUrl,
-          bio:                data.bio,
-          location:           data.location,
-          website:            data.website,
-          instagram_url:      data.instagramUrl,
-          twitter_url:        data.twitterUrl,
-          soundcloud_url:     data.soundcloudUrl,
-          mixcloud_url:       data.mixcloudUrl,
           ascap_id:           data.ascapId,
           primary_pro:        data.primaryPRO,
           bmi_id:             data.bmiId,
@@ -393,7 +353,7 @@ export const useStore = create<StoreState>()(
         const { user } = get();
         if (!user) return;
         set({ tracksLoading: true });
-        const { data, error } = await supabase.from('tracks').select('*').eq('user_id', user.id).order('sort_order', { ascending: true, nullsFirst: false }).order('upload_date', { ascending: false });
+        const { data, error } = await supabase.from('tracks').select('*').eq('user_id', user.id).order('upload_date', { ascending: false });
         if (!error && data) {
           const tracks = await Promise.all(data.map(async (row) => {
             const track = rowToTrack(row);
@@ -482,48 +442,21 @@ export const useStore = create<StoreState>()(
 
       getTrackById: (id) => get().tracks.find((t) => t.id === id),
 
-      reorderTracks: async (trackIds) => {
-        const { tracks, user } = get();
-        if (!user) return;
+      reorderTracks: (trackIds) => {
+        const { tracks } = get();
         const reordered = trackIds.map((id) => tracks.find((t) => t.id === id)).filter(Boolean) as Track[];
         set({ tracks: reordered });
-        // Persist sort_order for each track
-        await Promise.all(
-          trackIds.map((id, index) =>
-            supabase.from('tracks').update({ sort_order: index + 1 } as Record<string, unknown>).eq('id', id).eq('user_id', user.id)
-          )
-        );
       },
 
       onAirTrackIds: [],
       onAirPlaylistIds: [],
       onAirMode: 'all',
       setOnAir: async (trackIds, playlistIds, mode) => {
-        const { user, tracks, playlists } = get();
+        const { user } = get();
         set({ onAirTrackIds: trackIds, onAirPlaylistIds: playlistIds, onAirMode: mode });
         if (!user) return;
-
-        // Build ordered track list for the widget to consume
-        let orderedTrackIds: string[] = [];
-        if (mode === 'all') {
-          orderedTrackIds = tracks.map((t) => t.id);
-        } else {
-          // Selected tracks in library sort order
-          const libraryOrdered = tracks.filter((t) => trackIds.includes(t.id)).map((t) => t.id);
-          // Tracks from selected playlists in playlist order
-          const seen = new Set(libraryOrdered);
-          for (const pid of playlistIds) {
-            const pl = playlists.find((p) => p.id === pid);
-            if (pl) {
-              for (const t of pl.tracks) {
-                if (!seen.has(t.id)) { libraryOrdered.push(t.id); seen.add(t.id); }
-              }
-            }
-          }
-          orderedTrackIds = libraryOrdered;
-        }
-
-        const config = JSON.stringify({ trackIds, playlistIds, mode, orderedTrackIds });
+        // Persist to profiles as radio_config JSON
+        const config = JSON.stringify({ trackIds, playlistIds, mode });
         await supabase.from('profiles').update({ radio_config: config } as Record<string, unknown>).eq('id', user.id);
       },
 
@@ -531,14 +464,10 @@ export const useStore = create<StoreState>()(
       playlistsLoading: false,
 
       fetchPlaylists: async () => {
-        const { user } = get();
+        const { user, tracks } = get();
         if (!user) return;
         const { data, error } = await supabase.from('playlists').select('*').eq('user_id', user.id).order('created_date', { ascending: false });
-        if (!error && data) {
-          // Re-read tracks at resolution time, not capture time
-          const { tracks } = get();
-          set({ playlists: data.map((row) => rowToPlaylist(row, tracks)) });
-        }
+        if (!error && data) set({ playlists: data.map((row) => rowToPlaylist(row, tracks)) });
       },
 
       addPlaylist: async (playlist) => {
@@ -689,9 +618,9 @@ export const useStore = create<StoreState>()(
       reportsPanelOpen: false,
       setReportsPanelOpen: (open) => set({ reportsPanelOpen: open }),
 
-      // ── DJ Drops ────────────────────────────────────────────────────────
+      // ── DJ Drops ──────────────────────────────────────────────────────────
       drops: [],
-      dropConfig: { enabled: false, interval: 3, order: 'sequential' },
+      dropConfig: { enabled: false, interval: 2, order: 'sequential' },
 
       fetchDrops: async () => {
         const { user } = get();
@@ -699,25 +628,15 @@ export const useStore = create<StoreState>()(
         const { data, error } = await supabase.from('drops').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
         if (!error && data) {
           const drops: Drop[] = await Promise.all(data.map(async (row) => {
-            let fileUrl = row.file_url as string;
+            let fileUrl = '';
             if (row.file_path) {
               const { data: urlData } = await supabase.storage.from('drops').createSignedUrl(row.file_path as string, 3600);
-              fileUrl = urlData?.signedUrl ?? fileUrl;
+              fileUrl = urlData?.signedUrl ?? '';
             }
-            return {
-              id: row.id as string,
-              userId: row.user_id as string,
-              title: row.title as string,
-              fileUrl,
-              filePath: row.file_path as string,
-              duration: (row.duration as number) || 0,
-              fileSize: (row.file_size as number) || 0,
-              createdAt: row.created_at as string,
-            };
+            return { id: row.id as string, userId: row.user_id as string, title: row.title as string, fileUrl, filePath: row.file_path as string, duration: (row.duration as number) || 0, fileSize: (row.file_size as number) || 0, createdAt: row.created_at as string };
           }));
           set({ drops });
         }
-        // Also load drop config from profile
         const { data: profile } = await supabase.from('profiles').select('drop_config').eq('id', user.id).single();
         if (profile?.drop_config) {
           try { set({ dropConfig: JSON.parse(profile.drop_config as string) }); } catch { /* ignore */ }
@@ -733,47 +652,34 @@ export const useStore = create<StoreState>()(
         if (uploadError) { get().addToast('Drop upload failed: ' + uploadError.message, 'error'); return; }
         const { data: urlData } = await supabase.storage.from('drops').createSignedUrl(filePath, 3600);
         const fileUrl = urlData?.signedUrl ?? '';
-        // Measure duration
-        let duration = 0;
-        try {
-          const buf = await file.arrayBuffer();
-          const ctx = new AudioContext();
-          const decoded = await ctx.decodeAudioData(buf);
-          duration = decoded.duration;
-          ctx.close();
-        } catch { /* ignore */ }
-        const { data, error } = await supabase.from('drops').insert({
-          user_id: user.id, title, file_path: filePath, file_url: fileUrl,
-          duration: Math.round(duration), file_size: file.size,
-        }).select().single();
+        const { data, error } = await supabase.from('drops').insert({ user_id: user.id, title, file_path: filePath, duration: 0, file_size: file.size }).select().single();
         if (!error && data) {
-          const drop: Drop = { id: data.id, userId: data.user_id, title: data.title, fileUrl, filePath, duration: data.duration || 0, fileSize: data.file_size || 0, createdAt: data.created_at };
+          const drop: Drop = { id: data.id, userId: data.user_id, title: data.title, fileUrl, filePath, duration: 0, fileSize: file.size, createdAt: data.created_at };
           set((s) => ({ drops: [drop, ...s.drops] }));
-          get().addToast(`"${title}" uploaded`, 'success');
+          get().addToast('"' + title + '" uploaded', 'success');
         }
       },
 
       deleteDrop: async (id) => {
         const { drops } = get();
-        const drop = drops.find((d) => d.id === id);
+        const drop = drops.find(d => d.id === id);
         if (drop?.filePath) await supabase.storage.from('drops').remove([drop.filePath]);
         await supabase.from('drops').delete().eq('id', id);
-        set((s) => ({ drops: s.drops.filter((d) => d.id !== id) }));
+        set((s) => ({ drops: s.drops.filter(d => d.id !== id) }));
         get().addToast('Drop deleted', 'success');
       },
 
       updateDropConfig: async (config) => {
         const { user, dropConfig } = get();
-        const updated = { ...dropConfig, ...config };
-        set({ dropConfig: updated });
-        if (user) {
-          await supabase.from('profiles').update({ drop_config: JSON.stringify(updated) } as Record<string, unknown>).eq('id', user.id);
-        }
+        const newConfig = { ...dropConfig, ...config };
+        set({ dropConfig: newConfig });
+        if (user) await supabase.from('profiles').update({ drop_config: JSON.stringify(newConfig) } as Record<string, unknown>).eq('id', user.id);
       },
 
-      // ── Show Scheduling ──────────────────────────────────────────────────
+      // ── Show Scheduling ────────────────────────────────────────────────────
       shows: [],
       activeShow: null,
+      previousPlaylistId: null,
 
       fetchShows: async () => {
         const { user } = get();
@@ -781,16 +687,10 @@ export const useStore = create<StoreState>()(
         const { data, error } = await supabase.from('shows').select('*').eq('user_id', user.id).order('day_of_week').order('start_time');
         if (!error && data) {
           const shows: Show[] = data.map((row) => ({
-            id: row.id as string,
-            userId: row.user_id as string,
-            name: row.name as string,
-            playlistId: row.playlist_id as string,
-            dayOfWeek: row.day_of_week as number,
-            startTime: row.start_time as string,
-            durationMinutes: row.duration_minutes as number,
-            repeat: row.repeat as boolean,
-            isActive: row.is_active as boolean,
-            createdAt: row.created_at as string,
+            id: row.id as string, userId: row.user_id as string, name: row.name as string,
+            playlistId: row.playlist_id as string, dayOfWeek: row.day_of_week as number,
+            startTime: row.start_time as string, durationMinutes: row.duration_minutes as number,
+            repeat: row.repeat as boolean, isActive: row.is_active as boolean, createdAt: row.created_at as string,
           }));
           set({ shows });
         }
@@ -800,19 +700,14 @@ export const useStore = create<StoreState>()(
         const { user } = get();
         if (!user) return;
         const { data, error } = await supabase.from('shows').insert({
-          user_id: user.id,
-          name: show.name,
-          playlist_id: show.playlistId,
-          day_of_week: show.dayOfWeek,
-          start_time: show.startTime,
-          duration_minutes: show.durationMinutes,
-          repeat: show.repeat,
-          is_active: show.isActive,
+          user_id: user.id, name: show.name, playlist_id: show.playlistId,
+          day_of_week: show.dayOfWeek, start_time: show.startTime,
+          duration_minutes: show.durationMinutes, repeat: show.repeat, is_active: show.isActive,
         }).select().single();
         if (!error && data) {
-          const newShow: Show = { id: data.id, userId: data.user_id, name: data.name, playlistId: data.playlist_id, dayOfWeek: data.day_of_week, startTime: data.start_time, durationMinutes: data.duration_minutes, repeat: data.repeat, isActive: data.is_active, createdAt: data.created_at };
-          set((s) => ({ shows: [...s.shows, newShow].sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.startTime.localeCompare(b.startTime)) }));
-          get().addToast(`"${show.name}" scheduled`, 'success');
+          const s: Show = { id: data.id, userId: data.user_id, name: data.name, playlistId: data.playlist_id, dayOfWeek: data.day_of_week, startTime: data.start_time, durationMinutes: data.duration_minutes, repeat: data.repeat, isActive: data.is_active, createdAt: data.created_at };
+          set((st) => ({ shows: [...st.shows, s].sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.startTime.localeCompare(b.startTime)) }));
+          get().addToast('"' + show.name + '" scheduled', 'success');
         } else {
           get().addToast('Failed to save show: ' + error?.message, 'error');
         }
@@ -828,27 +723,49 @@ export const useStore = create<StoreState>()(
         if (_showEngineTimer) clearInterval(_showEngineTimer);
 
         const checkShows = () => {
-          const { shows, playlists, player, playPlaylist } = get();
-          if (!shows.length) return;
-
+          const { shows, playlists, player, activeShow } = get();
           const now = new Date();
           const currentDay = now.getDay();
           const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
+          // If show is active, check if it ended
+          if (activeShow) {
+            const [h, m] = activeShow.startTime.split(':').map(Number);
+            const showStart = h * 60 + m;
+            const showEnd = showStart + activeShow.durationMinutes;
+            const stillRunning = activeShow.dayOfWeek === currentDay && currentMinutes >= showStart && currentMinutes < showEnd;
+            if (!stillRunning) {
+              const { previousPlaylistId } = get();
+              const prev = playlists.find(p => p.id === previousPlaylistId);
+              set({ activeShow: null, previousPlaylistId: null });
+              if (prev) {
+                get().playPlaylist(prev, 0);
+                get().addToast('Back to your station', 'success');
+              } else {
+                get().pause();
+                get().addToast('Show ended', 'success');
+              }
+            }
+            return;
+          }
+
+          // Check if a show should start now
           for (const show of shows) {
             if (!show.isActive) continue;
             if (show.dayOfWeek !== currentDay) continue;
-
             const [h, m] = show.startTime.split(':').map(Number);
             const showStart = h * 60 + m;
             const showEnd = showStart + show.durationMinutes;
-
             if (currentMinutes >= showStart && currentMinutes < showEnd) {
               const playlist = playlists.find((p) => p.id === show.playlistId);
               if (!playlist) continue;
-              if (player.currentPlaylist?.id === show.playlistId) continue;
-              playPlaylist(playlist, 0);
-              get().addToast('🎙 Now airing: ' + show.name, 'success');
+              if (player.currentPlaylist?.id === show.playlistId) {
+                set({ activeShow: show });
+                return;
+              }
+              set({ activeShow: show, previousPlaylistId: player.currentPlaylist?.id ?? null });
+              get().playPlaylist(playlist, 0);
+              get().addToast('Now airing: ' + show.name, 'success');
               return;
             }
           }
@@ -863,8 +780,11 @@ export const useStore = create<StoreState>()(
       },
 
       dismissShow: () => {
-        set({ activeShow: null });
-        get().pause();
+        const { previousPlaylistId, playlists } = get();
+        const prev = playlists.find(p => p.id === previousPlaylistId);
+        set({ activeShow: null, previousPlaylistId: null });
+        if (prev) get().playPlaylist(prev, 0);
+        else get().pause();
       },
 
       // ── Discover / Saved Stations ──

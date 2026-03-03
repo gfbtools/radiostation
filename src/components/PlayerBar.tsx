@@ -6,8 +6,10 @@ import { useStore } from '@/store/useStore';
 import { useEffect, useRef, useCallback } from 'react';
 import { audioEngine } from '@/lib/audioEngine';
 
-// Module-level flag to block track loading while a drop is playing
+// Module-level — must survive re-renders
 let _dropPlaying = false;
+let _tracksSinceDrop = 0;
+let _dropIndex = 0;
 
 export default function PlayerBar() {
   const {
@@ -31,10 +33,6 @@ export default function PlayerBar() {
   const playStartTimeRef = useRef<number | null>(null);
   const totalPlayedRef = useRef<number>(0);
   const sessionId = useRef<string>(Math.random().toString(36).substr(2, 9));
-
-  // Drop counter — tracks how many songs played since last drop
-  const tracksSinceDropRef = useRef<number>(0);
-  const dropIndexRef = useRef<number>(0);
 
   const formatTime = (seconds: number) => {
     if (!isFinite(seconds) || isNaN(seconds)) return '0:00';
@@ -69,36 +67,28 @@ export default function PlayerBar() {
       totalPlayedRef.current = 0;
       playStartTimeRef.current = null;
 
-      // Check if a drop should play before next track
       const { drops, dropConfig, activeShow } = useStore.getState();
-      if (activeShow) { useStore.getState().nextTrack(); return; } // no drops during shows
-      if (dropConfig.enabled && drops.length > 0) {
-        tracksSinceDropRef.current += 1;
-        if (tracksSinceDropRef.current >= dropConfig.interval) {
-          tracksSinceDropRef.current = 0;
-          // Pick drop
-          let drop;
-          if (dropConfig.order === 'random') {
-            drop = drops[Math.floor(Math.random() * drops.length)];
-          } else {
-            drop = drops[dropIndexRef.current % drops.length];
-            dropIndexRef.current += 1;
-          }
+      if (!activeShow && dropConfig.enabled && drops.length > 0) {
+        _tracksSinceDrop += 1;
+        if (_tracksSinceDrop >= dropConfig.interval) {
+          _tracksSinceDrop = 0;
+          const drop = dropConfig.order === "random"
+            ? drops[Math.floor(Math.random() * drops.length)]
+            : drops[_dropIndex++ % drops.length];
           if (drop?.fileUrl) {
             _dropPlaying = true;
             const dropAudio = new Audio(drop.fileUrl);
-            dropAudio.volume = 1;
+            dropAudio.volume = 0.9;
             const afterDrop = () => {
               _dropPlaying = false;
               useStore.getState().nextTrack();
-              // Manually trigger load since useEffect won't re-fire (track ID already changed)
               setTimeout(() => {
-                const { player } = useStore.getState();
-                if (player.currentTrack?.fileUrl) {
-                  audioEngine.load(player.currentTrack.fileUrl, player.currentTrack.gainDb ?? 0);
-                  if (player.isPlaying) audioEngine.play().catch(() => {});
+                const { player: pl } = useStore.getState();
+                if (pl.currentTrack?.fileUrl) {
+                  audioEngine.load(pl.currentTrack.fileUrl, pl.currentTrack.gainDb ?? 0);
+                  if (pl.isPlaying) audioEngine.play().catch(() => {});
                 }
-              }, 50);
+              }, 80);
             };
             dropAudio.onended = afterDrop;
             dropAudio.onerror = afterDrop;
@@ -107,21 +97,17 @@ export default function PlayerBar() {
           }
         }
       }
-
       useStore.getState().nextTrack();
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ─── React to track changes ─────────────────────────────────────────────────
   useEffect(() => {
     if (!player.currentTrack) return;
-    if (_dropPlaying) return; // wait for drop to finish before loading next track
+    if (_dropPlaying) return;
     const url = player.currentTrack.fileUrl;
     if (url) {
       audioEngine.load(url, player.currentTrack.gainDb ?? 0);
-      if (player.isPlaying) {
-        audioEngine.play().catch(() => useStore.getState().pause());
-      }
+      if (player.isPlaying) audioEngine.play().catch(() => useStore.getState().pause());
     }
     totalPlayedRef.current = 0;
     playStartTimeRef.current = null;
