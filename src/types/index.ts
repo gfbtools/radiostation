@@ -20,6 +20,13 @@ export interface User {
   publisherIpiNumber?: string;
   distributorName?: string;
   labelName?: string;
+  bio?: string;
+  location?: string;
+  website?: string;
+  instagramUrl?: string;
+  twitterUrl?: string;
+  soundcloudUrl?: string;
+  mixcloudUrl?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -181,6 +188,8 @@ export interface PublicStation {
   name: string;
   logoUrl?: string | null;
   trackCount: number;
+  bio?: string | null;
+  location?: string | null;
 }
 
 export interface AppState {
