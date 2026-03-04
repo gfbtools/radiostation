@@ -6,11 +6,6 @@ import { useStore } from '@/store/useStore';
 import { useEffect, useRef, useCallback } from 'react';
 import { audioEngine } from '@/lib/audioEngine';
 
-// Module-level — must survive re-renders
-let _dropPlaying = false;
-let _tracksSinceDrop = 0;
-let _dropIndex = 0;
-
 export default function PlayerBar() {
   const {
     player,
@@ -66,45 +61,12 @@ export default function PlayerBar() {
       }
       totalPlayedRef.current = 0;
       playStartTimeRef.current = null;
-
-      const { drops, dropConfig, activeShow } = useStore.getState();
-      console.log('[Drops] onEnded — enabled:', dropConfig.enabled, 'drops:', drops.length, 'activeShow:', !!activeShow, 'tracksSinceDrop:', _tracksSinceDrop, 'interval:', dropConfig.interval);
-      if (!activeShow && dropConfig.enabled && drops.length > 0) {
-        _tracksSinceDrop += 1;
-        if (_tracksSinceDrop >= dropConfig.interval) {
-          _tracksSinceDrop = 0;
-          const drop = dropConfig.order === "random"
-            ? drops[Math.floor(Math.random() * drops.length)]
-            : drops[_dropIndex++ % drops.length];
-          if (drop?.fileUrl) {
-            _dropPlaying = true;
-            const dropAudio = new Audio(drop.fileUrl);
-            dropAudio.volume = 0.9;
-            const afterDrop = () => {
-              _dropPlaying = false;
-              useStore.getState().nextTrack();
-              setTimeout(() => {
-                const { player: pl } = useStore.getState();
-                if (pl.currentTrack?.fileUrl) {
-                  audioEngine.load(pl.currentTrack.fileUrl, pl.currentTrack.gainDb ?? 0);
-                  if (pl.isPlaying) audioEngine.play().catch(() => {});
-                }
-              }, 80);
-            };
-            dropAudio.onended = afterDrop;
-            dropAudio.onerror = afterDrop;
-            dropAudio.play().catch(afterDrop);
-            return;
-          }
-        }
-      }
       useStore.getState().nextTrack();
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!player.currentTrack) return;
-    if (_dropPlaying) return;
     const url = player.currentTrack.fileUrl;
     if (url) {
       audioEngine.load(url, player.currentTrack.gainDb ?? 0);
