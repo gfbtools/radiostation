@@ -441,9 +441,15 @@ await get().fetchTracks();
       getTrackById: (id) => get().tracks.find((t) => t.id === id),
 
       reorderTracks: (trackIds) => {
-        const { tracks } = get();
+        const { tracks, user } = get();
         const reordered = trackIds.map((id) => tracks.find((t) => t.id === id)).filter(Boolean) as Track[];
         set({ tracks: reordered });
+        // Persist sort_order to DB so widget reads correct order
+        if (user) {
+          trackIds.forEach((id, index) => {
+            supabase.from('tracks').update({ sort_order: index } as Record<string, unknown>).eq('id', id).then(() => {});
+          });
+        }
       },
 
       onAirTrackIds: [],
