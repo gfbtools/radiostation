@@ -6,14 +6,6 @@ export interface User {
   email: string;
   name: string;
   logoUrl?: string;
-  // Public profile fields
-  bio?: string;
-  location?: string;
-  website?: string;
-  instagramUrl?: string;
-  twitterUrl?: string;
-  soundcloudUrl?: string;
-  mixcloudUrl?: string;
   primaryPRO?: PROName;
   ascapId?: string;
   bmiId?: string;
@@ -61,8 +53,8 @@ export interface Track {
 }
 
 // Storage quota constants
-export const STORAGE_QUOTA_FREE_BYTES  = 200 * 1024 * 1024;  // 200MB
-export const STORAGE_QUOTA_LABEL       = 'Free (200MB)';
+export const STORAGE_QUOTA_FREE_BYTES  = 300 * 1024 * 1024;  // 300MB
+export const STORAGE_QUOTA_LABEL       = 'Free (300MB)';
 
 export interface TrackMetadata {
   title: string;
@@ -189,42 +181,6 @@ export interface PublicStation {
   name: string;
   logoUrl?: string | null;
   trackCount: number;
-  bio?: string | null;
-  location?: string | null;
-}
-
-// ── DJ Drops ──────────────────────────────────────────────────────────────
-
-export interface Drop {
-  id: string;
-  userId: string;
-  title: string;
-  fileUrl: string;
-  filePath: string;
-  duration: number;
-  fileSize: number;
-  createdAt: string;
-}
-
-export interface DropConfig {
-  enabled: boolean;
-  interval: number;               // play a drop every N tracks
-  order: 'sequential' | 'random';
-}
-
-// ── Show Scheduling ───────────────────────────────────────────────────────
-
-export interface Show {
-  id: string;
-  userId: string;
-  name: string;
-  playlistId: string;
-  dayOfWeek: number;              // 0 = Sun … 6 = Sat
-  startTime: string;              // 'HH:MM' 24h
-  durationMinutes: number;
-  repeat: boolean;
-  isActive: boolean;
-  createdAt: string;
 }
 
 export interface AppState {
@@ -236,3 +192,4 @@ export interface AppState {
   filters: TrackFilters;
   ui: { toasts: Toast[]; modal: ModalState; isDarkMode: boolean; };
 }
+
