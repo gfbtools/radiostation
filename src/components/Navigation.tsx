@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Music, ListMusic, BarChart3, Settings, Menu, X, UserCircle, LogOut, Radio, Users, CalendarDays } from 'lucide-react';
+import { Music, ListMusic, BarChart3, Settings, Menu, X, UserCircle, LogOut, Radio, Users } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import ProfileSettingsModal from '@/components/ProfileSettingsModal';
 import MyStationPanel from '@/components/MyStationPanel';
 import DiscoverPanel from '@/components/DiscoverPanel';
 import OnAirPanel from '@/components/OnAirPanel';
-import ShowSchedulerPanel from '@/components/ShowSchedulerPanel';
-import ShowBanner from '@/components/ShowBanner';
 
 const navItems = [
   { label: 'Library',   icon: Music,     target: 'library' },
@@ -26,7 +24,6 @@ export default function Navigation() {
   const [isScrolled, setIsScrolled]       = useState(false);
   const [isMobileMenuOpen, setMobileMenu] = useState(false);
   const [profileOpen, setProfileOpen]     = useState(false);
-  const [showsOpen, setShowsOpen]         = useState(false);
   const [onAirOpen, setOnAirOpen]         = useState(false);
   const [userMenuOpen, setUserMenuOpen]   = useState(false);
   const [discoverOpen, setDiscoverOpen]   = useState(false);
@@ -53,25 +50,6 @@ export default function Navigation() {
                 <Icon size={15} /><span className="text-sm">{label}</span>
               </button>
             ))}
-            <button onClick={() => setDiscoverOpen(true)}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all ml-1"
-              style={{ color: '#B8B8B8' }}>
-              <Users size={15} /><span className="text-sm">Discover</span>
-            </button>
-            <button onClick={() => setOnAirOpen(true)}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all ml-1"
-              style={{
-                background: isLive ? 'rgba(201,255,59,0.1)' : 'rgba(255,80,80,0.1)',
-                color: isLive ? '#C9FF3B' : '#ff6b6b',
-                border: isLive ? '1px solid rgba(201,255,59,0.2)' : '1px solid rgba(255,80,80,0.2)',
-              }}>
-              <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${isLive ? 'bg-[#C9FF3B]' : 'bg-red-400'}`} /> On Air
-            </button>
-            <button onClick={() => setShowsOpen(true)}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all ml-1"
-              style={{ color: '#B8B8B8' }}>
-              <CalendarDays size={15} /> Schedule
-            </button>
             <button onClick={() => setStationPanelOpen(true)}
               className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all ml-1"
               style={{ background: 'rgba(201,255,59,0.12)', color: '#C9FF3B', border: '1px solid rgba(201,255,59,0.2)' }}>
@@ -179,8 +157,6 @@ export default function Navigation() {
       {stationPanelOpen && <MyStationPanel       onClose={() => setStationPanelOpen(false)} />}
       {onAirOpen        && <OnAirPanel           onClose={() => setOnAirOpen(false)} />}
       {discoverOpen     && <DiscoverPanel        onClose={() => setDiscoverOpen(false)} />}
-      {showsOpen        && <ShowSchedulerPanel   onClose={() => setShowsOpen(false)} />}
-      <ShowBanner />
     </>
   );
 }

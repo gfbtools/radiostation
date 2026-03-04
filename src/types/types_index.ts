@@ -53,8 +53,8 @@ export interface Track {
 }
 
 // Storage quota constants
-export const STORAGE_QUOTA_FREE_BYTES  = 200 * 1024 * 1024;  // 200MB
-export const STORAGE_QUOTA_LABEL       = 'Free (200MB)';
+export const STORAGE_QUOTA_FREE_BYTES  = 300 * 1024 * 1024;  // 300MB
+export const STORAGE_QUOTA_LABEL       = 'Free (300MB)';
 
 export interface TrackMetadata {
   title: string;
@@ -193,33 +193,3 @@ export interface AppState {
   ui: { toasts: Toast[]; modal: ModalState; isDarkMode: boolean; };
 }
 
-// ── DJ Drops ──────────────────────────────────────────────────────────────
-export interface Drop {
-  id: string;
-  userId: string;
-  title: string;
-  fileUrl: string;
-  filePath: string;
-  duration: number;
-  fileSize: number;
-  createdAt: string;
-}
-
-export interface DropConfig {
-  enabled: boolean;
-  interval: number;
-  order: 'sequential' | 'random';
-}
-
-export interface Show {
-  id: string;
-  userId: string;
-  name: string;
-  playlistId: string;
-  dayOfWeek: number;
-  startTime: string;
-  durationMinutes: number;
-  repeat: boolean;
-  isActive: boolean;
-  createdAt: string;
-}

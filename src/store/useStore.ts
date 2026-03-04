@@ -11,15 +11,10 @@ import type {
   TrackFilters,
   Toast,
   SavedStation,
-  Drop,
-  DropConfig,
-  Show,
 } from '@/types';
 import { STORAGE_QUOTA_FREE_BYTES } from '@/types';
 
 // Module-level timer — must live outside Zustand state or it gets garbage collected
-let _showEngineTimer: ReturnType<typeof setInterval> | null = null;
-
 // Resolve a stored logo path (or already-signed URL) to a fresh signed URL
 async function resolveLogoUrl(logoPath: string): Promise<string> {
   if (!logoPath) return '';
@@ -96,23 +91,6 @@ interface StoreState {
   setPlaylistPanelOpen: (open: boolean) => void;
   reportsPanelOpen: boolean;
   setReportsPanelOpen: (open: boolean) => void;
-  // ── DJ Drops ──────────────────────────────────────────────────────────────
-  drops: Drop[];
-  dropConfig: DropConfig;
-  fetchDrops: () => Promise<void>;
-  addDrop: (file: File, title: string) => Promise<void>;
-  deleteDrop: (id: string) => Promise<void>;
-  updateDropConfig: (config: Partial<DropConfig>) => Promise<void>;
-  // ── Show Scheduling ────────────────────────────────────────────────────────
-  shows: Show[];
-  activeShow: Show | null;
-  previousPlaylistId: string | null;
-  fetchShows: () => Promise<void>;
-  addShow: (show: Omit<Show, 'id' | 'userId' | 'createdAt'>) => Promise<void>;
-  deleteShow: (id: string) => Promise<void>;
-  startShowEngine: () => void;
-  stopShowEngine: () => void;
-  dismissShow: () => void;
   // Discover
   savedStations: SavedStation[];
   fetchSavedStations: () => Promise<void>;
@@ -238,15 +216,10 @@ export const useStore = create<StoreState>()(
               set({ onAirTrackIds: rc.trackIds ?? [], onAirPlaylistIds: rc.playlistIds ?? [], onAirMode: rc.mode ?? 'all' });
             } catch { /* ignore parse errors */ }
           }
-          if (profile?.drop_config) {
-            try { set({ dropConfig: JSON.parse(profile.drop_config as string) }); } catch { /* ignore */ }
-          }
-          await get().fetchTracks();
+await get().fetchTracks();
           await get().fetchPlaylists();
           await get().fetchPlayLogs();
-          await get().fetchDrops();
-          await get().fetchShows();
-          get().startShowEngine();
+
         } else {
           set({ isLoadingAuth: false });
         }
@@ -283,9 +256,7 @@ export const useStore = create<StoreState>()(
           createdAt: new Date(data.user.created_at), updatedAt: new Date(),
         };
         set({ user, isAuthenticated: true });
-        if (profile?.drop_config) { try { set({ dropConfig: JSON.parse(profile.drop_config as string) }); } catch { /* */ } }
         await get().fetchTracks(); await get().fetchPlaylists(); await get().fetchPlayLogs();
-        await get().fetchDrops(); await get().fetchShows(); get().startShowEngine();
         get().addToast(`Welcome back, ${user.name}!`, 'success');
         return true;
       },
@@ -310,7 +281,7 @@ export const useStore = create<StoreState>()(
           };
           set({ user, isAuthenticated: true });
           await get().fetchTracks(); await get().fetchPlaylists(); await get().fetchPlayLogs();
-          await get().fetchDrops(); await get().fetchShows(); get().startShowEngine();
+
           get().addToast(`Welcome, ${name}! Your account is ready.`, 'success');
           return true;
         }
@@ -645,180 +616,7 @@ export const useStore = create<StoreState>()(
       reportsPanelOpen: false,
       setReportsPanelOpen: (open) => set({ reportsPanelOpen: open }),
 
-      // ── DJ Drops ──────────────────────────────────────────────────────────
-      drops: [],
-      dropConfig: { enabled: false, interval: 2, order: 'sequential' },
 
-      fetchDrops: async () => {
-        const { user } = get();
-        if (!user) return;
-        const { data, error } = await supabase.from('drops').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
-        if (!error && data) {
-          const drops: Drop[] = await Promise.all(data.map(async (row) => {
-            let fileUrl = '';
-            if (row.file_path) {
-              const { data: urlData } = await supabase.storage.from('drops').createSignedUrl(row.file_path as string, 3600);
-              fileUrl = urlData?.signedUrl ?? '';
-            }
-            return { id: row.id as string, userId: row.user_id as string, title: row.title as string, fileUrl, filePath: row.file_path as string, duration: (row.duration as number) || 0, fileSize: (row.file_size as number) || 0, createdAt: row.created_at as string };
-          }));
-          set({ drops });
-        }
-        const { data: profile } = await supabase.from('profiles').select('drop_config').eq('id', user.id).single();
-        if (profile?.drop_config) {
-          try { set({ dropConfig: JSON.parse(profile.drop_config as string) }); } catch { /* ignore */ }
-        }
-      },
-
-      addDrop: async (file, title) => {
-        const { user } = get();
-        if (!user) return;
-        const ext = file.name.split('.').pop();
-        const filePath = `${user.id}/${Date.now()}.${ext}`;
-        const { error: uploadError } = await supabase.storage.from('drops').upload(filePath, file, { contentType: file.type });
-        if (uploadError) { get().addToast('Drop upload failed: ' + uploadError.message, 'error'); return; }
-        const { data: urlData } = await supabase.storage.from('drops').createSignedUrl(filePath, 3600);
-        const fileUrl = urlData?.signedUrl ?? '';
-        const { data, error } = await supabase.from('drops').insert({ user_id: user.id, title, file_path: filePath, duration: 0, file_size: file.size }).select().single();
-        if (!error && data) {
-          const drop: Drop = { id: data.id, userId: data.user_id, title: data.title, fileUrl, filePath, duration: 0, fileSize: file.size, createdAt: data.created_at };
-          set((s) => ({ drops: [drop, ...s.drops] }));
-          get().addToast('"' + title + '" uploaded', 'success');
-        }
-      },
-
-      deleteDrop: async (id) => {
-        const { drops } = get();
-        const drop = drops.find(d => d.id === id);
-        if (drop?.filePath) await supabase.storage.from('drops').remove([drop.filePath]);
-        await supabase.from('drops').delete().eq('id', id);
-        set((s) => ({ drops: s.drops.filter(d => d.id !== id) }));
-        get().addToast('Drop deleted', 'success');
-      },
-
-      updateDropConfig: async (config) => {
-        const { user, dropConfig } = get();
-        const newConfig = { ...dropConfig, ...config };
-        set({ dropConfig: newConfig });
-        if (user) await supabase.from('profiles').update({ drop_config: JSON.stringify(newConfig) } as Record<string, unknown>).eq('id', user.id);
-      },
-
-      // ── Show Scheduling ────────────────────────────────────────────────────
-      shows: [],
-      activeShow: null,
-      previousPlaylistId: null,
-
-      fetchShows: async () => {
-        const { user } = get();
-        if (!user) return;
-        const { data, error } = await supabase.from('shows').select('*').eq('user_id', user.id).order('day_of_week').order('start_time');
-        if (!error && data) {
-          const shows: Show[] = data.map((row) => ({
-            id: row.id as string, userId: row.user_id as string, name: row.name as string,
-            playlistId: row.playlist_id as string, dayOfWeek: row.day_of_week as number,
-            startTime: row.start_time as string, durationMinutes: row.duration_minutes as number,
-            repeat: row.repeat as boolean, isActive: row.is_active as boolean, createdAt: row.created_at as string,
-          }));
-          set({ shows });
-        }
-      },
-
-      addShow: async (show) => {
-        const { user } = get();
-        if (!user) return;
-        const { data, error } = await supabase.from('shows').insert({
-          user_id: user.id, name: show.name, playlist_id: show.playlistId,
-          day_of_week: show.dayOfWeek, start_time: show.startTime,
-          duration_minutes: show.durationMinutes, repeat: show.repeat, is_active: show.isActive,
-        }).select().single();
-        if (!error && data) {
-          const s: Show = { id: data.id, userId: data.user_id, name: data.name, playlistId: data.playlist_id, dayOfWeek: data.day_of_week, startTime: data.start_time, durationMinutes: data.duration_minutes, repeat: data.repeat, isActive: data.is_active, createdAt: data.created_at };
-          set((st) => ({ shows: [...st.shows, s].sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.startTime.localeCompare(b.startTime)) }));
-          get().addToast('"' + show.name + '" scheduled', 'success');
-        } else {
-          get().addToast('Failed to save show: ' + error?.message, 'error');
-        }
-      },
-
-      deleteShow: async (id) => {
-        await supabase.from('shows').delete().eq('id', id);
-        set((s) => ({ shows: s.shows.filter((sh) => sh.id !== id) }));
-        get().addToast('Show removed', 'success');
-      },
-
-      startShowEngine: () => {
-        if (_showEngineTimer) clearInterval(_showEngineTimer);
-
-        const checkShows = () => {
-          const { shows, playlists, player, activeShow } = get();
-          const now = new Date();
-          const currentDay = now.getDay();
-          const currentMinutes = now.getHours() * 60 + now.getMinutes();
-          console.log('[ShowEngine] check — day:', currentDay, 'min:', currentMinutes, 'shows:', shows.length, 'activeShow:', activeShow?.name ?? null);
-
-          // If show is active, check if it ended
-          if (activeShow) {
-            const [h, m] = activeShow.startTime.split(':').map(Number);
-            const showStart = h * 60 + m;
-            const showEnd = showStart + activeShow.durationMinutes;
-            const stillRunning = activeShow.dayOfWeek === currentDay && currentMinutes >= showStart && currentMinutes < showEnd;
-            if (!stillRunning) {
-              const { previousPlaylistId } = get();
-              const prev = playlists.find(p => p.id === previousPlaylistId);
-              set({ activeShow: null, previousPlaylistId: null });
-              if (prev) {
-                get().playPlaylist(prev, 0);
-                get().addToast('Back to your station', 'success');
-              } else {
-                get().pause();
-                get().addToast('Show ended', 'success');
-              }
-            }
-            return;
-          }
-
-          // Check if a show should start now
-          for (const show of shows) {
-            if (!show.isActive) continue;
-            if (show.dayOfWeek !== currentDay) continue;
-            const [h, m] = show.startTime.split(':').map(Number);
-            const showStart = h * 60 + m;
-            const showEnd = showStart + show.durationMinutes;
-            if (currentMinutes >= showStart && currentMinutes < showEnd) {
-              const playlist = playlists.find((p) => p.id === show.playlistId);
-              console.log('[ShowEngine] show window matched:', show.name, 'playlist found:', !!playlist);
-              if (!playlist) continue;
-              if (player.currentPlaylist?.id === show.playlistId) {
-                set({ activeShow: show });
-                return;
-              }
-              set({ activeShow: show, previousPlaylistId: player.currentPlaylist?.id ?? null });
-              get().playPlaylist(playlist, 0);
-              // Small delay to let audioEngine load, then ensure playing
-              setTimeout(() => { if (!get().player.isPlaying) get().resume(); }, 300);
-              get().addToast('Now airing: ' + show.name, 'success');
-              return;
-            }
-          }
-        };
-
-        checkShows();
-        _showEngineTimer = setInterval(checkShows, 10000);
-      },
-
-      stopShowEngine: () => {
-        if (_showEngineTimer) { clearInterval(_showEngineTimer); _showEngineTimer = null; }
-      },
-
-      dismissShow: () => {
-        const { previousPlaylistId, playlists } = get();
-        const prev = playlists.find(p => p.id === previousPlaylistId);
-        set({ activeShow: null, previousPlaylistId: null });
-        if (prev) get().playPlaylist(prev, 0);
-        else get().pause();
-      },
-
-      // ── Discover / Saved Stations ──
       savedStations: [],
       fetchSavedStations: async () => {
         const { user } = get();
