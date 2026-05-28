@@ -4,6 +4,7 @@
   "installCommand": "npm install",
   "framework": "vite",
   "rewrites": [
-    { "source": "/artist", "destination": "/artist.html" }
+    { "source": "/artist", "destination": "/artist.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
